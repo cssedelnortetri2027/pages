@@ -22,6 +22,7 @@ show_reading_time: false
       <button id="show-csh" type="button" class="ocs__btn capstone-filter-btn" aria-pressed="false">CSH</button>
       <button id="show-csa" type="button" class="ocs__btn capstone-filter-btn" aria-pressed="false">CSA</button>
       <button id="show-csp" type="button" class="ocs__btn capstone-filter-btn" aria-pressed="false">CSP</button>
+      <button id="show-csse" type="button" class="ocs__btn capstone-filter-btn" aria-pressed="false">CSSE</button>
       <select id="year-select" class="nc-select" aria-label="Filter projects by school year" style="max-width: 14rem;">
         <option value="2026-2027" selected>2026/2027</option>
         <option value="2025-2026">2025/2026</option>
@@ -54,12 +55,19 @@ document.addEventListener('DOMContentLoaded', function(){
     all: document.getElementById('show-all'),
     CSA: document.getElementById('show-csa'),
     CSP: document.getElementById('show-csp'),
-    CSH: document.getElementById('show-csh')
+    CSH: document.getElementById('show-csh'),
+    CSSE: document.getElementById('show-csse')
   };
   let currentType = 'all';
   let currentQuery = '';
   const yearSelect = document.getElementById('year-select');
   let currentYear = yearSelect ? yearSelect.value : '';
+  // Old Games links open the complete CSSE catalog, including undated projects.
+  if(new URLSearchParams(window.location.search).get('course') === 'CSSE'){
+    currentType = 'CSSE';
+    if(yearSelect) yearSelect.value = '';
+    currentYear = '';
+  }
 
   const linkMap = {
     "Oasis": {
@@ -254,6 +262,11 @@ document.addEventListener('DOMContentLoaded', function(){
   document.getElementById('show-csa')?.addEventListener('click', ()=> setTypeFilter('CSA'));
   document.getElementById('show-csp')?.addEventListener('click', ()=> setTypeFilter('CSP'));
   document.getElementById('show-csh')?.addEventListener('click', ()=> setTypeFilter('CSH'));
+  document.getElementById('show-csse')?.addEventListener('click', ()=>{
+    if(yearSelect) yearSelect.value = '';
+    currentYear = '';
+    setTypeFilter('CSSE');
+  });
   yearSelect?.addEventListener('change', event=>{
     currentYear = event.target.value;
     applyFilters();
@@ -1063,6 +1076,8 @@ document.addEventListener('DOMContentLoaded', function(){
            <p>Team: Akhil, Syown, Leon, Perry, Skandan, Sathwik, Akshajh, Tarun, Samarth</p>
        </div>
    </div>
+
+   {% include capstone-games.html %}
 </div>
 
 <!-- Edit Capstone Modal -->

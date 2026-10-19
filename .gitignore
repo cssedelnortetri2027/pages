@@ -122,6 +122,9 @@ _projects/*/*/Makefile
 !_projects/_template/Makefile
 # Existing versioned overrides remain tracked; force-add any new intentional override.
 
+# Personal omake notebook list (created by ./omake on first run)
+omake_notebooks.txt
+
 # Project pages (deployed from _projects/ at build time to _posts/)
 _posts/projects/
 

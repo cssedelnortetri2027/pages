@@ -268,6 +268,14 @@ active_tab: calendar
             <p id="editTitle" contentEditable='false' class="calendar-event-modal-field calendar-event-modal-display"></p>
             <label for="editDescription" class="calendar-event-modal-label">Description:</label>
             <p id="editDescription" contentEditable='false' class="calendar-event-modal-field calendar-event-modal-display calendar-event-modal-description"></p>
+            <label for="editDocUrl" class="calendar-event-modal-label">Linked Doc:</label>
+            <!-- No whitespace inside: .calendar-event-modal-display is pre-wrap -->
+            <p id="editDocDisplay" class="calendar-event-modal-field calendar-event-modal-display"><a id="editDocLink" class="calendar-event-modal-doc-link" target="_blank" rel="noopener"></a><span id="editDocEmpty" class="calendar-event-modal-doc-empty">No doc linked</span></p>
+            <input type="text" id="editDocUrl" list="calendar-doc-options" class="calendar-event-modal-field issue-form-date-hidden" placeholder="Search docs or paste a link" autocomplete="off">
+            <datalist id="calendar-doc-options">
+                {% for doc in site.data.topics_catalog %}<option value="{{ doc.url | relative_url | escape }}">{{ doc.title | escape }}</option>
+                {% endfor %}
+            </datalist>
             <label for="editPriority" class="calendar-event-modal-label">Priority:</label>
             <select id="editPriority" disabled class="calendar-event-modal-field">
                 <option value="P0">P0 - Critical</option>
@@ -342,6 +350,7 @@ active_tab: calendar
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
 <script type="module">
     import { javaURI, fetchOptions } from '{{site.baseurl}}/assets/js/api/config.js';
+    import { normalizeDocUrl, splitLinkedDoc, joinLinkedDoc, readDocLaunchParams } from '{{site.baseurl}}/assets/js/projects/calendar/CalendarDocLinks.js';
 
     // ─── Auth helpers ───────────────────────────────────────────────
     let javaAuthenticated = true;
@@ -421,6 +430,12 @@ active_tab: calendar
         const groupText = String(event.groupName || ext.groupName || '').toLowerCase();
         const periodText = String(event.period || ext.period || '').toLowerCase();
         return titleText.includes('cs pathway') || groupText === 'cs pathway' || periodText === 'cs pathway';
+    }
+
+    // Spring rejects an edit without a period, so events with no course are saved as "Personal".
+    const PERSONAL_EVENT_PERIOD = 'Personal';
+    function getEventCourse(period) {
+        return period && period !== PERSONAL_EVENT_PERIOD ? period : null;
     }
 
     function getCsPathwayEvents() {
@@ -946,6 +961,40 @@ active_tab: calendar
             return (b.extendedProps && b.extendedProps.breakName) || b.breakName || b.title || null;
         }
 
+        // ── Event modal: linked doc + group ─────────────────────────
+        const docOptions = Array.from(document.querySelectorAll('#calendar-doc-options option'));
+        const docTitlesByUrl = new Map(docOptions.map(option => [normalizeDocUrl(option.value, window.location.origin), option.textContent.trim()]));
+        const docUrlsByTitle = new Map(docOptions.map(option => [option.textContent.trim().toLowerCase(), option.value]));
+
+        function showLinkedDoc(docUrl) {
+            const link = document.getElementById('editDocLink');
+            link.href = docUrl || '#';
+            link.textContent = docUrl ? (docTitlesByUrl.get(docUrl) || docUrl) : '';
+            link.style.display = docUrl ? 'inline' : 'none';
+            document.getElementById('editDocEmpty').style.display = docUrl ? 'none' : 'inline';
+            document.getElementById('editDocUrl').value = docUrl || '';
+        }
+        function setDocFieldEditable(editable) {
+            document.getElementById('editDocDisplay').style.display = editable ? 'none' : 'block';
+            document.getElementById('editDocUrl').style.display = editable ? 'block' : 'none';
+        }
+        // Accepts a doc picked from the list, a pasted link, or a doc title typed in full.
+        // Returns '' for no doc and null for text that is not a link.
+        function readDocInput() {
+            const value = document.getElementById('editDocUrl').value.trim();
+            if (!value) return '';
+            const pickedUrl = docUrlsByTitle.get(value.toLowerCase()) || value;
+            return normalizeDocUrl(pickedUrl, window.location.origin) || null;
+        }
+        // An event may belong to a group the user isn't in; keep it selectable so saving doesn't clear it.
+        function selectEventGroup(groupName) {
+            const select = document.getElementById('editGroupName');
+            if (groupName && !Array.from(select.options).some(option => option.value === groupName)) {
+                select.add(new Option(groupName, groupName));
+            }
+            select.value = groupName || '';
+        }
+
         // ── fetch events + breaks ───────────────────────────────────
         function request() {
             return fetch(`${javaURI}/api/calendar/events`, fetchOptions)
@@ -1358,14 +1407,14 @@ active_tab: calendar
                                     isCsPathway: csPathway,
                                     // Group-based fields
                                     groupName: event.groupName || '',
-                                    period: event.period || null,   // course name (CSA/CSP/CSSE) from sprint sync
+                                    period: getEventCourse(event.period),   // course name (CSA/CSP/CSSE) from sprint sync
                                     classNames: [`priority-${priority.toLowerCase()}`].concat(csPathway ? ['fc-event-cs-pathway'] : []),
                                     extendedProps: {
                                         type: event.type || 'event',
                                         groupName: event.groupName || '',
                                         individual: event.individual || '',
                                         description: event.description,
-                                        period: event.period || null,
+                                        period: getEventCourse(event.period),
                                         priority: priority,
                                         isCsPathway: csPathway,
                                         source: csPathway ? 'cs-pathway' : (event.type || 'event')
@@ -1689,20 +1738,22 @@ active_tab: calendar
                             return;
                         }
                     }
-                    document.getElementById("saveButton").style.display = "none";
+                    leaveEditMode();
                     document.getElementById("makeBreakButton").style.display = "none";
-                    document.getElementById('eventTitle').textContent = isBreak
+                    const displayTitle = isBreak
                         ? ((currentEvent.extendedProps && currentEvent.extendedProps.breakName) || currentEvent.breakName || currentEvent.title)
                         : currentEvent.title;
-                    document.getElementById('editDescription').innerHTML = slackToHtml(currentEvent.extendedProps.description || "");
+                    document.getElementById('eventTitle').textContent = displayTitle;
+                    // Edit mode reads the title from this field, so it must hold the event's title
+                    document.getElementById('editTitle').textContent = displayTitle;
+                    const { body, docUrl } = splitLinkedDoc(currentEvent.extendedProps.description, window.location.origin);
+                    document.getElementById('editDescription').innerHTML = slackToHtml(body);
+                    showLinkedDoc(docUrl);
                     document.getElementById('editDateDisplay').textContent = formatDisplayDate(currentEvent.start);
                     document.getElementById('editDate').value = formatDate(currentEvent.start);
                     document.getElementById("editPriority").value = currentEvent.extendedProps.priority || "P2";
-                    document.getElementById("editPriority").disabled = true;
                     document.getElementById("editEventType").value = currentEvent.extendedProps.type || "event";
-                    document.getElementById("editEventType").disabled = true;
-                    document.getElementById("editGroupName").value = currentEvent.extendedProps.groupName || "";
-                    document.getElementById("editGroupName").disabled = true;
+                    selectEventGroup(currentEvent.extendedProps.groupName);
                     document.getElementById("eventModal")?.classList.add('open');
                     document.getElementById("eventModal").dataset.isIssue = isIssue ? "true" : "false";
                     const isSchoolHoliday = currentEvent.extendedProps && currentEvent.extendedProps.isSchoolHoliday === true;
@@ -1746,78 +1797,7 @@ active_tab: calendar
                         alert(`There is already a break on ${formatDisplayDate(info.date)}`);
                         return;
                     }
-                    isAddingNewEvent = true;
-                    document.getElementById("eventTitle").textContent = "Add New Event";
-                    document.getElementById("editTitle").innerHTML = "";
-                    document.getElementById("editDescription").innerHTML = "";
-                    document.getElementById("editDescription").contentEditable = true;
-                    document.getElementById("editTitle").contentEditable = true;
-                    document.getElementById("editPriority").disabled = false;
-                    document.getElementById("editPriority").value = "P2";
-                    document.getElementById("editEventType").disabled = false;
-                    document.getElementById("editEventType").value = "event";
-                    document.getElementById("editGroupName").disabled = false;
-                    document.getElementById("editGroupName").value = "";
-                    document.getElementById('editDateDisplay').textContent = formatDisplayDate(info.date);
-                    document.getElementById('editDate').value = selectedDate;
-                    document.getElementById("eventModal")?.classList.add('open');
-                    document.getElementById("deleteButton").style.display = "none";
-                    document.getElementById("editButton").style.display = "none";
-                    document.getElementById("saveButton").style.display = "inline-block";
-                    document.getElementById("makeBreakButton").style.display = "inline-block";
-                    document.getElementById("saveButton").onclick = function () {
-                        const updatedTitle = document.getElementById("editTitle").innerHTML.trim();
-                        const updatedDescription = document.getElementById("editDescription").innerHTML;
-                        const updatedDate = document.getElementById("editDate").value;
-                        const updatedPriority = document.getElementById("editPriority").value;
-                        const selectedType = document.getElementById("editEventType").value;
-                        const selectedGroup = document.getElementById("editGroupName").value;
-
-                        if (!updatedTitle || !updatedDescription || !updatedDate) {
-                            alert("Title, Description, and Date cannot be empty!");
-                            return;
-                        }
-                        // Group selection is optional; allow events without group
-
-                        const currentUserName = (window.user && window.user.name) ? window.user.name : '';
-                        // Derive period (course) from the selected group so backend validation passes
-                        let derivedPeriod = '';
-                        const matchedGroup = userGroups.find(g => g.name === selectedGroup);
-                        if (matchedGroup && matchedGroup.course) derivedPeriod = matchedGroup.course.toUpperCase();
-                        // Embed priority prefix in title for persistence
-                        let titleToSave = updatedTitle;
-                        if (updatedPriority && !/^\[P[0-3]\]/.test(titleToSave)) {
-                            titleToSave = `[${updatedPriority}] ${titleToSave}`;
-                        }
-                        const newEventPayload = {
-                            title: titleToSave,
-                            description: updatedDescription,
-                            date: updatedDate,
-                            priority: updatedPriority,
-                            groupName: selectedGroup,
-                            period: derivedPeriod,
-                            type: selectedType,
-                            individual: selectedType === 'appointment' ? currentUserName : ''
-                        };
-                        document.getElementById("eventModal")?.classList.remove('open');
-                        fetch(`${javaURI}/api/calendar/add_event`, {
-                            ...fetchOptions,
-                            method: "POST",
-                            body: JSON.stringify(newEventPayload),
-                        })
-                        .then(response => {
-                            if (handleAuthError(response)) { alert("You must be logged in to add events."); return; }
-                            if (!response.ok) throw new Error(`Failed to add event: ${response.status}`);
-                            return response.json();
-                        })
-                        .then(data => { if (data) handleRequest(); })
-                        .catch(error => {
-                            if (!handleFetchError(error)) {
-                                console.error("Error adding event:", error);
-                                alert("Failed to save event.\n\n" + error.message);
-                            }
-                        });
-                    };
+                    openAddEventModal(info.date);
                 }
             });
             calendar.render();
@@ -1838,16 +1818,21 @@ active_tab: calendar
         }
 
         // ── Modal close / escape / outside-click ────────────────────
-        function closeModal() {
+        // Back to read-only view; the modal stays open.
+        function leaveEditMode() {
             document.getElementById('editDateDisplay').style.display = 'block';
             document.getElementById('editDate').style.display = 'none';
             document.getElementById("saveButton").style.display = "none";
-            document.getElementById("eventModal")?.classList.remove('open');
             document.getElementById("editTitle").contentEditable = false;
             document.getElementById("editDescription").contentEditable = false;
             document.getElementById("editPriority").disabled = true;
             document.getElementById("editEventType").disabled = true;
             document.getElementById("editGroupName").disabled = true;
+            setDocFieldEditable(false);
+        }
+        function closeModal() {
+            leaveEditMode();
+            document.getElementById("eventModal")?.classList.remove('open');
         }
         document.getElementById("closeModal").onclick = closeModal;
         document.addEventListener('keydown', e => {
@@ -1862,90 +1847,170 @@ active_tab: calendar
             if (e.target === document.getElementById("eventModal")) closeModal();
         };
 
-        // ── Save (edit existing) ────────────────────────────────────
-        document.getElementById("saveButton").onclick = function () {
+        // ── Add New Event modal ─────────────────────────────────────
+        // Used by a date click and by "Add to Calendar" on a doc page (pickDate lets the user choose the day).
+        function openAddEventModal(date, { title = '', docUrl = '', pickDate = false } = {}) {
+            isAddingNewEvent = true;
+            currentEvent = null;
+            const modal = document.getElementById("eventModal");
+            modal.dataset.isBreak = "false";
+            modal.dataset.isIssue = "false";
+            document.getElementById("eventTitle").textContent = "Add New Event";
+            document.getElementById("editTitle").textContent = title;
+            document.getElementById("editDescription").innerHTML = "";
+            document.getElementById("editDescription").contentEditable = true;
+            document.getElementById("editTitle").contentEditable = true;
+            document.getElementById("editPriority").disabled = false;
+            document.getElementById("editPriority").value = "P2";
+            document.getElementById("editEventType").disabled = false;
+            document.getElementById("editEventType").value = "event";
+            document.getElementById("editGroupName").disabled = false;
+            selectEventGroup('');
+            showLinkedDoc(docUrl);
+            setDocFieldEditable(true);
+            document.getElementById('editDateDisplay').textContent = formatDisplayDate(date);
+            document.getElementById('editDate').value = formatDate(date);
+            document.getElementById('editDateDisplay').style.display = pickDate ? 'none' : 'block';
+            document.getElementById('editDate').style.display = pickDate ? 'block' : 'none';
+            modal.classList.add('open');
+            document.getElementById("deleteButton").style.display = "none";
+            document.getElementById("editButton").style.display = "none";
+            document.getElementById("saveButton").style.display = "inline-block";
+            document.getElementById("makeBreakButton").style.display = pickDate ? "none" : "inline-block";
+        }
+
+        // A doc page links here with ?doc=<url>&title=<title> to start an event for that doc.
+        function openAddEventFromDocLink() {
+            const launch = readDocLaunchParams(window.location.search, window.location.origin);
+            if (!launch) return;
+            const nextUrl = new URL(window.location.href);
+            nextUrl.searchParams.delete('doc');
+            nextUrl.searchParams.delete('title');
+            window.history.replaceState({}, '', nextUrl.toString());
+            if (!javaAuthenticated || ((!window.user || !window.user.uid) && !currentPersonId)) {
+                alert('You must be logged in to create events. Please log in and try again.');
+                return;
+            }
+            switchDashboardTab('calendar');
+            openAddEventModal(new Date(), { title: launch.title, docUrl: launch.docUrl, pickDate: true });
+        }
+
+        // Priority is embedded in the title so it persists even if the backend
+        // doesn't store it separately (sprint-synced events look like "[P1] 📚 Title - CSA").
+        function withPriorityPrefix(title, priority) {
+            return priority && !/^\[P[0-3]\]/.test(title) ? `[${priority}] ${title}` : title;
+        }
+        // The backend validates period, so derive the course from the chosen group.
+        function getGroupCourse(groupName) {
+            const matchedGroup = userGroups.find(g => g.name === groupName);
+            return matchedGroup && matchedGroup.course ? matchedGroup.course.toUpperCase() : '';
+        }
+
+        // ── Save ────────────────────────────────────────────────────
+        // Reads the modal and validates it; alerts and returns null when something is missing.
+        function readEventForm({ requireDate }) {
+            const docUrl = readDocInput();
+            if (docUrl === null) {
+                alert("Linked Doc must be a doc from the list or a web link (https://...).");
+                return null;
+            }
+            const form = {
+                title: document.getElementById("editTitle").textContent.trim(),
+                description: joinLinkedDoc(document.getElementById("editDescription").innerHTML, docUrl),
+                date: document.getElementById("editDate").value,
+                priority: document.getElementById("editPriority").value,
+                type: document.getElementById("editEventType").value,
+                groupName: document.getElementById("editGroupName").value
+            };
+            if (!form.title || !form.description.trim() || (requireDate && !form.date)) {
+                alert(requireDate ? "Title, Description, and Date cannot be empty!" : "Title and Description cannot be empty!");
+                return null;
+            }
+            return form;
+        }
+
+        function saveNewEvent() {
+            const form = readEventForm({ requireDate: true });
+            if (!form) return;
+            const currentUserName = (window.user && window.user.name) ? window.user.name : '';
+            const newEventPayload = {
+                title: withPriorityPrefix(form.title, form.priority),
+                description: form.description,
+                date: form.date,
+                priority: form.priority,
+                groupName: form.groupName,
+                period: getGroupCourse(form.groupName),
+                type: form.type,
+                individual: form.type === 'appointment' ? currentUserName : ''
+            };
+            closeModal();
+            fetch(`${javaURI}/api/calendar/add_event`, {
+                ...fetchOptions,
+                method: "POST",
+                body: JSON.stringify(newEventPayload),
+            })
+            .then(response => {
+                if (handleAuthError(response)) { alert("You must be logged in to add events."); return; }
+                if (!response.ok) throw new Error(`Failed to add event: ${response.status}`);
+                return response.json();
+            })
+            .then(data => { if (data) handleRequest(); })
+            .catch(error => {
+                if (!handleFetchError(error)) {
+                    console.error("Error adding event:", error);
+                    alert("Failed to save event.\n\n" + error.message);
+                }
+            });
+        }
+
+        function saveEventChanges() {
+            if (!currentEvent) return;
             const isBreak = document.getElementById("eventModal").dataset.isBreak === "true";
-            const updatedTitle = document.getElementById("editTitle").innerHTML.trim();
-            const updatedDescription = document.getElementById("editDescription").innerHTML;
-            // Reset UI
-            document.getElementById("saveButton").style.display = "none";
-            document.getElementById('editDateDisplay').style.display = 'block';
-            document.getElementById('editDate').style.display = 'none';
-            document.getElementById("editDescription").contentEditable = false;
-            document.getElementById("editTitle").contentEditable = false;
-            document.getElementById("editPriority").disabled = true;
-            document.getElementById("editEventType").disabled = true;
-            document.getElementById("editGroupName").disabled = true;
-            if (!updatedTitle || !updatedDescription) { alert("Title and Description cannot be empty!"); return; }
+            const form = readEventForm({ requireDate: !isBreak });
+            if (!form) return;
+            leaveEditMode();
 
             if (isBreak) {
                 const id = currentEvent.id;
                 fetch(`${javaURI}/api/calendar/breaks/${id}`, {
                     ...fetchOptions, method: "PUT",
-                    body: JSON.stringify({ name: updatedTitle, description: updatedDescription }),
+                    body: JSON.stringify({ name: form.title, description: form.description }),
                 })
                 .then(r => { if (handleAuthError(r)) return; if (!r.ok) throw new Error(`Failed: ${r.status}`); return r.json(); })
                 .then(d => { if (!d) return; document.getElementById("eventModal")?.classList.remove('open'); handleRequest(); })
                 .catch(e => { if (!handleFetchError(e)) { console.error(e); alert("Failed to update break.\n\n" + e.message); } });
-            } else {
-                const updatedPriority = document.getElementById("editPriority").value;
-                const updatedDate = document.getElementById("editDate").value;
-                document.getElementById('editDateDisplay').textContent = formatDisplayDate(new Date(updatedDate));
-                if (!updatedDate) { alert("Date cannot be empty!"); return; }
-                if (isAddingNewEvent) {
-                    const addGroupVal = document.getElementById("editGroupName").value;
-                    let addPeriod = '';
-                    if (addGroupVal) {
-                        const mg = userGroups.find(g => g.name === addGroupVal);
-                        if (mg && mg.course) addPeriod = mg.course.toUpperCase();
-                    }
-                    // Embed priority prefix in title for persistence
-                    let addTitle = updatedTitle;
-                    if (updatedPriority && !/^\[P[0-3]\]/.test(addTitle)) {
-                        addTitle = `[${updatedPriority}] ${addTitle}`;
-                    }
-                    const payload = { title: addTitle, description: updatedDescription, date: updatedDate, priority: updatedPriority, groupName: addGroupVal, period: addPeriod };
-                    fetch(`${javaURI}/api/calendar/add_event`, {
-                        ...fetchOptions, method: "POST", body: JSON.stringify(payload),
-                    })
-                    .then(r => { if (handleAuthError(r)) return; if (!r.ok) throw new Error(`Failed: ${r.status}`); return r.json(); })
-                    .then(d => { if (!d) return; document.getElementById("eventModal")?.classList.remove('open'); handleRequest(); })
-                    .catch(e => { if (!handleFetchError(e)) { console.error(e); alert("Failed to add event.\n\n" + e.message); } });
-                } else {
-                    // Derive period (course) from the selected group so backend validation passes
-                    const editGroupVal = document.getElementById("editGroupName").value;
-                    let derivedPeriod = currentEvent.extendedProps?.period || '';
-                    if (editGroupVal) {
-                        const matchedGroup = userGroups.find(g => g.name === editGroupVal);
-                        if (matchedGroup && matchedGroup.course) derivedPeriod = matchedGroup.course.toUpperCase();
-                    }
-                    // Re-embed priority prefix in title so it persists even if backend
-                    // doesn't store priority as a separate field (sprint-synced events
-                    // carry priority in the title like "[P1] 📚 Title - CSA").
-                    let titleToSave = updatedTitle;
-                    if (updatedPriority && !/^\[P[0-3]\]/.test(titleToSave)) {
-                        titleToSave = `[${updatedPriority}] ${titleToSave}`;
-                    }
-                    const payload = {
-                        newTitle: titleToSave, description: updatedDescription, date: updatedDate,
-                        priority: updatedPriority, type: document.getElementById("editEventType").value,
-                        groupName: editGroupVal,
-                        period: derivedPeriod,
-                        individual: currentEvent.extendedProps?.individual || ''
-                    };
-                    const id = currentEvent.id;
-                    fetch(`${javaURI}/api/calendar/edit/${id}`, {
-                        ...fetchOptions, method: "PUT", body: JSON.stringify(payload),
-                    })
-                    .then(r => { if (handleAuthError(r)) return; if (!r.ok) throw new Error(`Failed: ${r.status}`); return r.text(); })
-                    .then(d => { if (d === undefined) return; document.getElementById("eventModal")?.classList.remove('open'); handleRequest(); })
-                    .catch(e => { if (!handleFetchError(e)) { console.error(e); alert("Failed to update event.\n\n" + e.message); } });
-                }
+                return;
             }
+
+            const payload = {
+                newTitle: withPriorityPrefix(form.title, form.priority), description: form.description, date: form.date,
+                priority: form.priority, type: form.type,
+                groupName: form.groupName,
+                period: getGroupCourse(form.groupName) || currentEvent.extendedProps?.period || PERSONAL_EVENT_PERIOD,
+                individual: currentEvent.extendedProps?.individual || ''
+            };
+            const id = currentEvent.id;
+            fetch(`${javaURI}/api/calendar/edit/${id}`, {
+                ...fetchOptions, method: "PUT", body: JSON.stringify(payload),
+            })
+            .then(r => {
+                if (handleAuthError(r)) return;
+                if (!r.ok) return r.text().then(t => { throw new Error(`Failed: ${r.status} - ${t}`); });
+                return r.text();
+            })
+            .then(d => { if (d === undefined) return; document.getElementById("eventModal")?.classList.remove('open'); handleRequest(); })
+            .catch(e => { if (!handleFetchError(e)) { console.error(e); alert("Failed to update event.\n\n" + e.message); } });
+        }
+
+        // One handler for both flows; a date click no longer replaces it.
+        document.getElementById("saveButton").onclick = function () {
+            if (isAddingNewEvent) saveNewEvent();
+            else saveEventChanges();
         };
 
         // ── Edit button ─────────────────────────────────────────────
         document.getElementById("editButton").onclick = function () {
+            if (!currentEvent) return;
             const isBreak = document.getElementById("eventModal").dataset.isBreak === "true";
             document.getElementById('editDateDisplay').style.display = 'none';
             document.getElementById('editDate').style.display = isBreak ? 'none' : 'block';
@@ -1959,7 +2024,10 @@ active_tab: calendar
                 document.getElementById("editEventType").disabled = false;
                 document.getElementById("editGroupName").disabled = false;
             }
-            document.getElementById("editDescription").innerHTML = currentEvent.extendedProps.description || "";
+            setDocFieldEditable(true);
+            // Edit the raw text; the linked doc has its own field
+            document.getElementById("editDescription").innerHTML = splitLinkedDoc(currentEvent.extendedProps.description, window.location.origin).body;
+            document.getElementById("editTitle").focus();
         };
 
         // ── Delete button ───────────────────────────────────────────
@@ -2657,11 +2725,13 @@ active_tab: calendar
                         opt.textContent = label;
                         issuesFilter.appendChild(opt);
                     }
-                    // Also populate the event modal's group select so events can be assigned
+                    // Also populate the event modal's group select so events can be assigned.
+                    // Events store the group *name*, so use it as the value and skip groups already listed.
                     const editGroupSelect = document.getElementById('editGroupName');
-                    if (editGroupSelect) {
+                    const groupName = String(group.name || '');
+                    if (editGroupSelect && groupName && !Array.from(editGroupSelect.options).some(o => o.value === groupName)) {
                         const opt2 = document.createElement('option');
-                        opt2.value = value;
+                        opt2.value = groupName;
                         opt2.textContent = label;
                         editGroupSelect.appendChild(opt2);
                     }
@@ -2721,6 +2791,7 @@ active_tab: calendar
         await populateGroupsSelect();
         console.debug('populateGroupsSelect complete, groups loaded:', window.allGroupsById);
         await handleRequest();
+        openAddEventFromDocLink();
         await autoStarIssuesForUserGroups();
         renderThreadsPanel();
     });

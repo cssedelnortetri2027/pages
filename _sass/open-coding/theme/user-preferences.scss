@@ -223,4 +223,31 @@
   [class*="bg-zinc-"] {
     background-color: var(--pref-bg-color) !important;
   }
+
+  /* Mermaid style lines cannot contain var(--panel): the parentheses are parsed as node syntax.
+     These rules keep rendered diagrams on the live preference colors. */
+  .mermaid {
+    .node rect,
+    .node polygon,
+    .node circle,
+    .node ellipse {
+      fill: var(--panel) !important;
+      stroke: var(--pref-accent-color) !important;
+    }
+
+    .cluster rect {
+      fill: var(--panel-mid) !important;
+      stroke: var(--pref-accent-color) !important;
+    }
+
+    .flowchart-link,
+    .edgePath path {
+      stroke: var(--pref-accent-color) !important;
+    }
+
+    marker path {
+      fill: var(--pref-accent-color) !important;
+      stroke: var(--pref-accent-color) !important;
+    }
+  }
 }

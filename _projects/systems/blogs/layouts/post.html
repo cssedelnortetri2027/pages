@@ -257,6 +257,13 @@ Sprint and blogs pages are not part of one week, so their current_week is null.
     <p class="page-description">{{ page.description }}</p>
     {%- endif -%}
     {%- endif -%}
+    {%- comment -%} Starts a /student/calendar event linked to this doc; the calendar reads ?doc= and ?title= {%- endcomment -%}
+    <p>
+      <a class="ocs__btn ocs__btn--icon small accent" href="{{ '/student/calendar' | relative_url }}?doc={{ page.url | relative_url | url_encode }}&amp;title={{ page.title | url_encode }}" data-add-doc-to-calendar>
+        <i class="fas fa-calendar-plus" aria-hidden="true"></i>
+        Add to Calendar
+      </a>
+    </p>
   </header>
 
   <div class="post-content e-content" itemprop="articleBody">
