@@ -11,7 +11,7 @@ const PANEL_SIZE = { width: 190, height: 62 };
 /**
  * TimeLapScreen - race HUD: a compact box with the timer, each player's laps and a Restart
  * button, plus a banner with the hint before the start. The first car to finish triggers the
- * losing screen for the other car and restarts the level after its countdown.
+ * losing screen for the other car, offering a choice to continue or mutually restart.
  *
  * data:
  * - totalLaps: laps to win (default 3)
@@ -27,6 +27,7 @@ class TimeLapScreen extends GameObject {
     this.finishLine = data.finishLine;
     this.drawsFinishLine = data.drawFinishLine === true;
     this.hudPosition = data.hudPosition || { x: 0.01, y: 0.02 };
+    this.showLosingScreen = data.showLosingScreen !== false;
     this.lapTracker = new LapTracker({ finishLine: this.finishLine, totalLaps: this.totalLaps });
     this.elapsedMs = 0;
     this.lastFrameAt = null;
@@ -96,16 +97,29 @@ class TimeLapScreen extends GameObject {
         this.winnerLabel = this.getPlayerLabel(player, index);
         const loser = players.find((candidate) => candidate !== player);
         const loserName = loser?.spriteData?.name || 'Car';
-        this.losingScreen = new LosingScreen({
-          container: this.gameEnv.container,
-          gameControl: this.gameEnv.gameControl,
-          loserName
-        });
+        if (this.showLosingScreen) {
+          this.losingScreen = new LosingScreen({
+            container: this.gameEnv.container,
+            gameControl: this.gameEnv.gameControl,
+            loserName,
+            onContinue: () => this.continueAfterWin()
+          });
+        }
       }
       if (player.velocity && (player.velocity.x !== 0 || player.velocity.y !== 0)) {
         this.raceStarted = true;
       }
     });
+  }
+
+  continueAfterWin() {
+    const gameControl = this.gameEnv.gameControl;
+    const targetIndex = gameControl.currentLevelIndex + 1;
+    if (!Number.isInteger(targetIndex) || targetIndex < 0 || targetIndex >= gameControl.levelClasses.length) {
+      throw new Error('Unable to find a valid level to continue to');
+    }
+    gameControl.currentLevelIndex = targetIndex;
+    gameControl.transitionToLevel();
   }
 
   updateTimer() {
@@ -129,7 +143,11 @@ class TimeLapScreen extends GameObject {
     }
     this.drawPanel(ctx);
     if (this.winnerLabel) {
-      this.drawBanner(ctx, `${this.winnerLabel} wins! ${this.formatTime(this.elapsedMs)}`, 'Race restarts automatically');
+      this.drawBanner(
+        ctx,
+        `${this.winnerLabel} wins! ${this.formatTime(this.elapsedMs)}`,
+        this.showLosingScreen ? 'Winner chooses to continue; both players can restart' : 'Race complete'
+      );
     } else if (!this.raceStarted) {
       this.drawBanner(ctx, 'Drive right!', 'Laps count each time you cross the start/finish line');
     }
