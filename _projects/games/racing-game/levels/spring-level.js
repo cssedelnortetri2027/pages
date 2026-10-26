@@ -42,7 +42,7 @@ class GameLevelSpring {
     const path = gameEnv.path;
     const background_data = {
       name: "Spring Course",
-      greeting: "Welcome to the spring level!!",
+      greeting: "Welcome to the spring level!",
       src: path + '/images/projects/racing-game/Spring_track.jpg',
       pixels: { height: 360, width: 643 }
     };
