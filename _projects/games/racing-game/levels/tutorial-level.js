@@ -1,5 +1,9 @@
 import GameEnvBackground from '@assets/js/GameEnginev1.1/essentials/GameEnvBackground.js';
+<<<<<<< HEAD
 import Player from './RacingPlayer.js';
+=======
+import TutorialPlayer from './TutorialPlayer.js';
+>>>>>>> 683e491dd (speed boost code)
 import SplineBarrier from '@assets/js/GameEnginev1.1/essentials/SplineBarrier.js';
 import TimeLapScreen from './TimeLapScreen.js';
 
@@ -17,6 +21,10 @@ class GameLevelTutorial {
         greeting: "I'm the red car!",
         mudSlowdown: true,
         src: path + '/images/projects/racing-game/Directions_red_car.png',
+        nitroSpriteSrc: path + '/images/projects/racing-game/red car nitro.png',
+        boostKey: 'f',
+        boostLabel: 'F',
+        controlLabel: 'WASD',
         SCALE_FACTOR: 10,
         STEP_FACTOR: 1100,
         INIT_POSITION: { x: 700 / 1408, y: 440 / 600},
@@ -39,6 +47,10 @@ class GameLevelTutorial {
         greeting: "I'm the blue car!",
         mudSlowdown: true,
         src: path + '/images/projects/racing-game/Directions_blue_car.png',
+        nitroSpriteSrc: path + '/images/projects/racing-game/blue car nitro.png',
+        boostKey: 'shift',
+        boostLabel: 'SHIFT',
+        controlLabel: 'Arrows',
         SCALE_FACTOR: 10,
         STEP_FACTOR: 1100,
         INIT_POSITION: { x: 700 / 1800, y: 440 / 600},
@@ -83,8 +95,13 @@ class GameLevelTutorial {
 
     this.classes = [
       { class: GameEnvBackground, data: background_data },
+<<<<<<< HEAD
       { class: Player, data: player_data },
       { class: Player, data: other_data },
+=======
+      { class: TutorialPlayer, data: player_data },
+      { class: TutorialPlayer, data: other_data },
+>>>>>>> 683e491dd (speed boost code)
       { class: SplineBarrier, data: barrierData1 },
       { class: SplineBarrier, data: barrierData2 },
       { class: TimeLapScreen, data: lap_data }
