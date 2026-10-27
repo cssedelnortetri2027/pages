@@ -10,7 +10,7 @@ def assert(condition, message)
   abort("FAIL: #{message}") unless condition
 end
 
-def render_sprint(sprint, with_lessons: true)
+def render_sprint(sprint, with_lessons: true, course: "csse")
   Dir.mktmpdir("sprint-intro-") do |source|
     ProjectPublisher.run("publish", PROJECT, source)
     assert(!File.exist?(File.join(source, "_includes/sprint-direction/csse-sprint-3.html")),
@@ -29,7 +29,7 @@ def render_sprint(sprint, with_lessons: true)
       player_page:
         sprint: 3
       ---
-      {% assign current_course = "csse" %}
+       {% assign current_course = "#{course}" %}
       {% assign lessonsByWeek = site.data.lesson_groups %}
       {% include player-pages/sprint.html %}
     PAGE
@@ -41,7 +41,7 @@ def render_sprint(sprint, with_lessons: true)
     ))
     site.read
     site.data = {
-      "csse" => { "Sprint3" => sprint },
+       course => { "Sprint3" => sprint },
       "cs" => { "Shared" => { "description" => "Shared description" } },
       "lesson_groups" => with_lessons ? [{ "name" => 9, "size" => 1, "items" => [] }] : []
     }
@@ -100,5 +100,67 @@ rescue IOError => e
 end
 assert(error && error.message.include?("projects/courses/sprint-intro/missing.md"),
        "A missing configured include fails explicitly and identifies the path")
+
+csp_sprint = YAML.safe_load(File.read(File.join(PROJECT, "data/csp.yml")), aliases: true).fetch("Sprint3")
+csp_page = Nokogiri::HTML.fragment(render_sprint(csp_sprint, course: "csp"))
+csp_intro = csp_page.at_css("section[aria-label='Sprint directions']")
+assert(csp_intro, "CSP sprint renders its authored intro")
+points_heading = csp_intro.css("h3").find { |heading| heading.text == "Points" }
+points_wrap = points_heading&.next_element
+assert(points_wrap && points_wrap.at_css("table"), "CSP scoring is a responsive table")
+cpt_heading = points_wrap.next_element
+assert(cpt_heading&.name == "h2" && cpt_heading.text == "Create Performance Task Requirements",
+       "CPT requirements immediately follow the scoring table")
+cpt_table = cpt_heading.at_xpath("following-sibling::div[contains(@class, 'ocs__table-wrap')][1]").at_css("table")
+expected_requirements = ["Program with Purpose", "Input", "Output", "List or Other Collection",
+                         "Student-Developed Procedure", "Sequencing", "Selection", "Iteration",
+                         "Calling Procedures", "Testing and Errors"]
+assert(cpt_table.css("tbody tr td:first-child").map(&:text) == expected_requirements,
+       "CSP includes the complete CPT programming and testing checklist")
+assert(csp_intro.css("ul, ol").empty?, "CSP intro uses headings and tables instead of nested outlines")
+big_ideas = csp_intro.css("h3").select { |heading| heading.text.start_with?("Big Idea 1.", "Big Idea 2:", "Big Idea 4:") }
+assert(big_ideas.size == 5 && big_ideas.all? { |heading| heading.next_element.at_css("table") },
+       "All five Big Idea sections use a heading followed by a table")
+csp_intro.css("table").each do |table|
+  assert(table["class"] == "ocs__table" && table.parent["class"] == "ocs__table-wrap",
+         "All CSP tables use existing OCS styling and scrolling wrappers")
+end
+point_rows = points_wrap.css("tbody tr")
+bonus, regular = point_rows.partition { |row| row.css("td")[1].text.include?("Bonus") }
+assert(point_rows.size == 10 && bonus.size == 1 &&
+       regular.sum { |row| Integer(row.css("td")[1].text.strip) } == 13,
+       "CSP retains ten assignments, thirteen regular points, and a separate bonus")
+assert(csp_intro.text.include?("Personalized Project Reference") && csp_intro.text.match?(/\bon the AP exam\b/i),
+       "CSP includes submission and exam-response guidance")
+assert(!csp_intro.text.match?(/Postman/i) && csp_intro.text.include?("REST Client"),
+       "CSP debugging guidance uses REST Client")
+
+csa_sprint = YAML.safe_load(File.read(File.join(PROJECT, "data/csa.yml")), aliases: true).fetch("Sprint3")
+assert(csa_sprint.fetch("direction_include") == "projects/courses/sprint-intro/csa-sprint-3.md",
+       "CSA Sprint 3 selects its migrated capstone intro")
+csa_page = Nokogiri::HTML.fragment(render_sprint(csa_sprint, course: "csa"))
+csa_intro = csa_page.at_css("section[aria-label='Sprint directions']")
+assert(csa_intro, "CSA Sprint 3 renders the migrated planning content")
+assert(csa_intro.text.include?("Formal CS112/CS113 curriculum alignment begins in Sprint 4"),
+       "CSA intro explains when formal CS112/CS113 alignment begins")
+assert(csa_intro.text.include?("Not every student is expected to complete every advanced CS113 layer"),
+       "CSA alignment does not imply every advanced layer is required")
+{ "Assignments" => [5, 10], "Skills" => [4, 5] }.each do |label, (count, total)|
+  heading = csa_intro.css("h3").find { |element| element.text == label }
+  table = heading&.next_element&.at_css("table")
+  assert(table, "CSA #{label} scoring is a table")
+  rows = table.css("tbody tr").reject { |row| row.css("td").first.text == "Total" }
+  assert(rows.size == count && rows.sum { |row| Integer(row.css("td")[1].text.strip) } == total,
+         "CSA preserves its #{label.downcase} categories and #{total}-point total")
+end
+assert(csa_intro.css("ul, ol").empty?, "CSA uses heading/table sections like CSP")
+csa_intro.css("table").each do |table|
+  assert(table["class"] == "ocs__table" && table.parent["class"] == "ocs__table-wrap",
+         "CSA tables use shared styling and responsive wrappers")
+end
+%w[/capstone/toolchain-trail/ /capstone/ocs-admin-security/ /capstone/submissions/
+   /csa/csa2/ /csa/cs112/ /csa/cs113/ /navigation/java-reference/].each do |route|
+  assert(csa_intro.at_css("a[href='/preview#{route}']"), "CSA preserves the capstone/curriculum link: #{route}")
+end
 
 puts "PASS: optional sprint directions, placement, rubric points, navigation, shared descriptions, and missing-file failure"

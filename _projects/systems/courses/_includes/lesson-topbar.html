@@ -23,6 +23,29 @@
         <a href="{{ site.baseurl }}/navigation/courses/{{ current_course }}/" title="Course home" aria-label="Course home">
           <i class="fas fa-home" aria-hidden="true"></i>
         </a>
+        {%- if page.player_page.kind == "home" %}
+        <button class="ocs__btn ocs__btn--icon small accent" id="resume-lesson-toggle" type="button" hidden aria-label="Continue last lesson" title="Continue last lesson">
+          <i class="fas fa-rotate-left" aria-hidden="true"></i>
+        </button>
+        <script>
+          (function () {
+            var btn = document.getElementById('resume-lesson-toggle');
+            if (!btn) return;
+            try {
+              var raw = localStorage.getItem('ocs-course-navigation:{{ current_course }}:desktop');
+              var state = raw ? JSON.parse(raw) : null;
+              if (state && typeof state.lastDocument === 'string' && state.lastDocument) {
+                btn.hidden = false;
+                btn.addEventListener('click', function () {
+                  window.location.href = state.lastDocument;
+                });
+              }
+            } catch (error) {
+              console.warn('Cannot read last lesson for resume toggle:', error);
+            }
+          })();
+        </script>
+        {%- endif %}
         {%- comment -%}
           A week intro sits in its sprint. A lesson or chat sits in its week, and
           the crumb opens the week's intro; currentWeekUrl is set by

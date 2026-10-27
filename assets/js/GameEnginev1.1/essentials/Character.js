@@ -159,9 +159,9 @@ class Character extends GameObject {
             this.spriteSheet.src = data.src;
 
             // Initialize animation properties
-            this.frameIndex = 0; // index reference to current frame
             this.frameCounter = 0; // count each frame rate refresh
-            this.direction = 'down'; // Initial direction
+            this.frameIndex = data.direction?.index || 0;
+            this.direction = data.direction?.default || 'down';
         }
 
         // Initialize the object's position and velocity

@@ -257,6 +257,13 @@ Sprint and blogs pages are not part of one week, so their current_week is null.
     <p class="page-description">{{ page.description }}</p>
     {%- endif -%}
     {%- endif -%}
+    {%- comment -%} Starts a /student/calendar event linked to this doc; the calendar reads ?doc= and ?title= {%- endcomment -%}
+    <p>
+      <a class="ocs__btn ocs__btn--icon small accent" href="{{ '/student/calendar' | relative_url }}?doc={{ page.url | relative_url | url_encode }}&amp;title={{ page.title | url_encode }}" data-add-doc-to-calendar>
+        <i class="fas fa-calendar-plus" aria-hidden="true"></i>
+        Add to Calendar
+      </a>
+    </p>
   </header>
 
   <div class="post-content e-content" itemprop="articleBody">
@@ -283,6 +290,9 @@ Sprint and blogs pages are not part of one week, so their current_week is null.
         Submit Assignment
       </h3>
 
+      {% comment %}
+        Self-assessment is paused while it is reworked; the matching JS checks
+        below are commented out. Remove this comment block to bring it back.
       <div class="self-assessment" id="self-assessment-blog">
         <h4 class="self-assessment-title">
           <i class="fas fa-clipboard-check"></i>
@@ -347,6 +357,7 @@ Sprint and blogs pages are not part of one week, so their current_week is null.
           <textarea id="self-assessment-reflection-blog" placeholder="In a few sentences, describe what you learned, struggled with, or accomplished on this assignment. Include one specific example."></textarea>
         </div>
       </div>
+      {% endcomment %}
 
       {% if submission_type == "link" or submission_type == "github_issue" %}
       {% if submission_type == "github_issue" %}
@@ -717,11 +728,12 @@ Sprint and blogs pages are not part of one week, so their current_week is null.
             return;
           }
           const selfAssessment = getSelfAssessmentDataBlog();
-          const selfAssessmentError = validateSelfAssessmentBlog(selfAssessment);
-          if (selfAssessmentError) {
-            showStatusBlog('error', selfAssessmentError);
-            return;
-          }
+          // Self-assessment is paused, so its required-field check is off for now.
+          // const selfAssessmentError = validateSelfAssessmentBlog(selfAssessment);
+          // if (selfAssessmentError) {
+          //   showStatusBlog('error', selfAssessmentError);
+          //   return;
+          // }
           btn.disabled = true;
           showStatusBlog('loading', 'Submitting...');
           try {
@@ -780,11 +792,12 @@ Sprint and blogs pages are not part of one week, so their current_week is null.
           const notes = document.getElementById('file-notes-blog').value.trim();
           const btn = document.getElementById('file-submit-btn-blog');
           const selfAssessment = getSelfAssessmentDataBlog();
-          const selfAssessmentError = validateSelfAssessmentBlog(selfAssessment);
-          if (selfAssessmentError) {
-            showStatusBlog('error', selfAssessmentError);
-            return;
-          }
+          // Self-assessment is paused, so its required-field check is off for now.
+          // const selfAssessmentError = validateSelfAssessmentBlog(selfAssessment);
+          // if (selfAssessmentError) {
+          //   showStatusBlog('error', selfAssessmentError);
+          //   return;
+          // }
           btn.disabled = true;
           showStatusBlog('loading', 'Uploading...');
           try {
@@ -814,11 +827,10 @@ Sprint and blogs pages are not part of one week, so their current_week is null.
               fd.append('username', uid);
               fd.append('file', file);
               if (notes) fd.append('notes', notes);
-              fd.append('technicalExcellence', String(selfAssessment.technicalExcellence));
-              fd.append('communication', String(selfAssessment.communication));
-              fd.append('workHabits', String(selfAssessment.workHabits));
-              fd.append('aiOrchestration', String(selfAssessment.aiOrchestration));
-              fd.append('selfAssessmentReflection', selfAssessment.selfAssessmentReflection);
+              // Skip unanswered fields: String(null) would send "null", which Spring cannot bind to an Integer.
+              for (const [field, value] of Object.entries(selfAssessment)) {
+                if (value !== null && value !== '') fd.append(field, String(value));
+              }
               const r = await fetch(`${javaURI}/api/assignment-submissions/upload`, {
                 method: 'POST',
                 mode: fetchOptions.mode,
@@ -873,11 +885,12 @@ Sprint and blogs pages are not part of one week, so their current_week is null.
             return;
           }
           const selfAssessment = getSelfAssessmentDataBlog();
-          const selfAssessmentError = validateSelfAssessmentBlog(selfAssessment);
-          if (selfAssessmentError) {
-            showStatusBlog('error', selfAssessmentError);
-            return;
-          }
+          // Self-assessment is paused, so its required-field check is off for now.
+          // const selfAssessmentError = validateSelfAssessmentBlog(selfAssessment);
+          // if (selfAssessmentError) {
+          //   showStatusBlog('error', selfAssessmentError);
+          //   return;
+          // }
           btn.disabled = true;
           showStatusBlog('loading', 'Checking login...');
           let uid, personId;

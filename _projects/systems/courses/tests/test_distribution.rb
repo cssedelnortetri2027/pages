@@ -170,4 +170,107 @@ class ProjectDistributionTest < Minitest::Test
     assert_equal "calendar", File.read(File.join(@workspace, "assets/js/projects/calendar/calendar.js"))
     assert_equal ".calendar {}", File.read(File.join(@workspace, "_sass/projects/calendar/main.scss"))
   end
+
+  def test_directory_docs_have_one_owner_and_follow_source_renames
+    template = File.expand_path("../../../_template/Makefile", __dir__)
+    FileUtils.mkdir_p(File.join(@workspace, "scripts"))
+    FileUtils.cp(File.expand_path("../../../../scripts/publish_project.rb", __dir__), File.join(@workspace, "scripts"))
+    docs = File.join(@project, "docs")
+    FileUtils.mkdir_p(docs)
+    source = File.join(docs, "2026-10-15-guide.md")
+    File.write(source, "first guide")
+    manifest([{ "source" => "docs", "destination" => "_posts/projects/courses" }])
+
+    stdout, stderr, result = Open3.capture3("make", "-f", template, "-C", @project,
+                                          "assets", "docs", "WORKSPACE_ROOT=#{@workspace}")
+    assert result.success?, "#{stdout}\n#{stderr}"
+    destination = File.join(@workspace, "_posts/projects/courses")
+    assert_equal ["2026-10-15-guide.md"], Dir.children(destination).sort,
+                 "The docs target must not create a second date-prefixed copy"
+
+    renamed = File.join(docs, "2026-10-16-renamed-guide.md")
+    FileUtils.mv(source, renamed)
+    File.write(renamed, "updated guide")
+    stdout, stderr, result = Open3.capture3("make", "-f", template, "-C", @project,
+                                          "docs", "WORKSPACE_ROOT=#{@workspace}")
+    assert result.success?, "#{stdout}\n#{stderr}"
+    assert_equal ["2026-10-16-renamed-guide.md"], Dir.children(destination).sort
+    published = File.join(destination, File.basename(renamed))
+    assert_equal "updated guide", File.read(published)
+
+    nested = File.join(docs, "guides", File.basename(renamed))
+    FileUtils.mkdir_p(File.dirname(nested))
+    FileUtils.mv(renamed, nested)
+    stdout, stderr, result = Open3.capture3("make", "-f", template, "-C", @project,
+                                          "assets", "docs", "WORKSPACE_ROOT=#{@workspace}")
+    assert result.success?, "#{stdout}\n#{stderr}"
+    refute File.exist?(published), "Moving a source removes its obsolete output"
+    published = File.join(destination, "guides", File.basename(nested))
+    assert_equal "updated guide", File.read(published)
+
+    File.write(published, "human changes")
+    assert_raises(RuntimeError) { run_publisher("clean") }
+    assert_equal "human changes", File.read(published)
+  end
+
+  def test_docs_without_a_directory_mapping_keep_legacy_naming
+    template = File.expand_path("../../../_template/Makefile", __dir__)
+    FileUtils.mkdir_p(File.join(@project, "docs"))
+    File.write(File.join(@project, "docs/guide.md"), "legacy guide")
+    stdout, stderr, result = Open3.capture3("make", "-f", template, "-C", @project,
+                                          "docs", "WORKSPACE_ROOT=#{@workspace}")
+    assert result.success?, "#{stdout}\n#{stderr}"
+    assert_equal "legacy guide", File.read(File.join(@workspace, "_posts/projects/courses/2026-04-15-courses-guide.md"))
+  end
+
+  def test_flask_docs_mirror_the_source_directory
+    project = File.expand_path("../../../lessons/flask", __dir__)
+    template = File.expand_path("../../../_template/Makefile", __dir__)
+    FileUtils.mkdir_p(File.join(@workspace, "scripts"))
+    FileUtils.cp(File.expand_path("../../../../scripts/publish_project.rb", __dir__), File.join(@workspace, "scripts"))
+    stdout, stderr, result = Open3.capture3("make", "-f", template, "-C", project,
+                                          "assets", "docs", "WORKSPACE_ROOT=#{@workspace}")
+    assert result.success?, "#{stdout}\n#{stderr}"
+    sources = Dir[File.join(project, "docs/**/*")].select { |path| File.file?(path) }
+    expected = sources.map { |path| Pathname.new(path).relative_path_from(Pathname.new(File.join(project, "docs"))).to_s }.sort
+    destination = File.join(@workspace, "_posts/projects/flask/docs")
+    actual = Dir[File.join(destination, "**/*")].select { |path| File.file?(path) }
+    assert_equal expected, actual.map { |path| Pathname.new(path).relative_path_from(Pathname.new(destination)).to_s }.sort
+    sources.each do |source|
+      relative = Pathname.new(source).relative_path_from(Pathname.new(File.join(project, "docs"))).to_s
+      assert_equal File.binread(source), File.binread(File.join(destination, relative))
+    end
+    refute Dir[File.join(@workspace, "_posts/projects/flask/*.md")].any?, "The legacy docs destination must not receive duplicate posts"
+    refute Dir.exist?(File.join(@workspace, "_posts/flask")), "No output escapes the standard project root"
+
+    stdout, stderr, result = Open3.capture3("make", "-f", template, "-C", project,
+                                          "docs-clean", "WORKSPACE_ROOT=#{@workspace}")
+    assert result.success?, "#{stdout}\n#{stderr}"
+    refute Dir.exist?(destination), "The standard docs cleanup includes nested Flask docs"
+    assert sources.all? { |source| File.file?(source) }, "Cleanup preserves authored documents"
+
+    stdout, stderr, result = Open3.capture3("make", "-f", template, "-C", project,
+                                          "docs", "WORKSPACE_ROOT=#{@workspace}")
+    assert result.success?, "#{stdout}\n#{stderr}"
+    assert_equal expected.size, Dir[File.join(destination, "**/*.md")].size,
+                 "Publishing restores missing outputs even when the ownership cache remains"
+  end
+
+  def test_flask_docs_destination_migration_removes_cached_legacy_outputs
+    FileUtils.mkdir_p(File.join(@project, "docs"))
+    File.write(File.join(@project, "docs/2026-10-15-guide.md"), "guide")
+    manifest([{ "source" => "docs", "destination" => "_posts/flask/docs" }])
+    run_publisher("publish")
+    legacy = File.join(@workspace, "_posts/flask/docs/2026-10-15-guide.md")
+    assert File.file?(legacy)
+
+    manifest([{ "source" => "docs", "destination" => "_posts/projects/flask/docs" }])
+    run_publisher("publish")
+    refute File.exist?(legacy)
+    published = File.join(@workspace, "_posts/projects/flask/docs/2026-10-15-guide.md")
+    assert_equal "guide", File.read(published)
+    run_publisher("clean")
+    refute File.exist?(published)
+    assert File.file?(File.join(@project, "docs/2026-10-15-guide.md"))
+  end
 end

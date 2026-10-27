@@ -1,6 +1,5 @@
 import GameEnvBackground from '@assets/js/GameEnginev1.1/essentials/GameEnvBackground.js';
-import Player from '@assets/js/GameEnginev1.1/essentials/Player.js';
-import Player2 from '@assets/js/GameEnginev1.1/essentials/Player2.js';
+import Player from './PlayerCar.js';
 import Character from '@assets/js/GameEnginev1.1/essentials/Character.js';
 import SplineBarrier from '@assets/js/GameEnginev1.1/essentials/SplineBarrier.js';
 import TimeLapScreen from './TimeLapScreen.js';
@@ -11,7 +10,7 @@ class GameLevelAutumn {
     const background_data = {
       name: "Autumn Course",
       greeting: "Welcome to the Autumn Level!",
-      src: path + '/images/projects/racing-game/Autumn_Track.jpeg',
+      src: path + '/images/projects/racing-game/Autumn_Mud_track.png',
       pixels: { height: 360, width: 643 }
     };
     const player_data = {
@@ -52,7 +51,7 @@ class GameLevelAutumn {
         left:      { row: 3, start: 2, columns: 1 },
         upLeft:    { row: 2, start: 0, columns: 1, rotate: Math.PI },
         hitbox: { widthPercentage: 0.5, heightPercentage: 0.5 },
-        keypress: { up: 73, left: 74, down: 75, right: 76 } // I, J, K, L
+        keypress: { up: 38, left: 37, down: 40, right: 39 } // Arrow keys
     }
     const barrierData1 = {
       id: "barrier-1",
@@ -92,7 +91,7 @@ class GameLevelAutumn {
     this.classes = [
       { class: GameEnvBackground, data: background_data },
       { class: Player, data: player_data },
-      { class: Player2, data: other_data },
+      { class: Player, data: other_data },
       { class: SplineBarrier, data: barrierData1 },
       { class: SplineBarrier, data: barrierData2 },
       { class: Character, data: BoxData },

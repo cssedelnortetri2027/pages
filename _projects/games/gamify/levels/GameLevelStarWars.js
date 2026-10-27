@@ -31,6 +31,7 @@ class GameLevelStarWars {
         INIT_POSITION: { x: 0, y: 0 }, 
         pixels: {height: 293, width: 358},
         orientation: {rows: 1, columns: 1 },
+        direction: { default: 'right', index: 0 },
         down: {row: 0, start: 0, columns: 1, rotate: -Math.PI/2 },
         downRight: {row: 0, start: 0, columns: 1, rotate: -3*Math.PI/4 },
         downLeft: {row: 0, start: 0, columns: 1, rotate: -Math.PI/4 },

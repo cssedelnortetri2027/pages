@@ -1,4 +1,5 @@
 import { pythonURI, fetchOptions } from './config.js';
+import { withMicroblogRateLimit } from './microblog-rate-limit.js';
 
 /**
  * Microblog API Module
@@ -46,15 +47,7 @@ export async function createPost(postData) {
         method: 'POST',
         body: JSON.stringify(postData)
     };
-    try {
-        const response = await fetch(apiUrl, options);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return await response.json();
-    } catch (error) {
-        throw error;
-    }
+    return withMicroblogRateLimit(() => fetch(apiUrl, options));
 }
 
 /**
@@ -70,15 +63,7 @@ export async function updatePost(postData) {
         method: 'PUT',
         body: JSON.stringify(postData)
     };
-    try {
-        const response = await fetch(apiUrl, options);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return await response.json();
-    } catch (error) {
-        throw error;
-    }
+    return withMicroblogRateLimit(() => fetch(apiUrl, options));
 }
 
 /**
@@ -93,15 +78,7 @@ export async function createReply(replyData) {
         method: 'POST',
         body: JSON.stringify(replyData)
     };
-    try {
-        const response = await fetch(apiUrl, options);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return await response.json();
-    } catch (error) {
-        throw error;
-    }
+    return withMicroblogRateLimit(() => fetch(apiUrl, options));
 }
 
 /**

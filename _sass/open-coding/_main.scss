@@ -27,11 +27,11 @@
 @import "quiz";
 @import "rps_lesson";
 @import "csa-unit2-interactive";
-@import "dm-chat";
 @import "dm-bell";
 @import "search";
 @import "stack-clicker";
 @import "theme/user-preferences";
+@import "theme/seasonal";
 // aesthetihawk stuff
 @import "materials/main.scss";
 @import "elements/main.scss";
@@ -54,3 +54,16 @@ select {
     background-color: $background;
 }
 @import "profile-gist-connection";
+@import "dashboard-v2";
+@import "analytics-dashboard-v2";
+@import "calendar-v2";
+
+// Shared by every ocs__<page>-v2 partial above: several of them toggle the
+// literal class "hidden" from JS (a Tailwind-style utility, not a grammar
+// element) to show/hide panels, modals, and form fields. Declared once
+// here, after every page partial, instead of each page redeclaring it --
+// this also guarantees it beats any single-class selector that also sets
+// `display`, since it's always last in the compiled stylesheet.
+.hidden {
+    display: none;
+}

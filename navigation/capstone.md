@@ -22,6 +22,7 @@ show_reading_time: false
       <button id="show-csh" type="button" class="ocs__btn capstone-filter-btn" aria-pressed="false">CSH</button>
       <button id="show-csa" type="button" class="ocs__btn capstone-filter-btn" aria-pressed="false">CSA</button>
       <button id="show-csp" type="button" class="ocs__btn capstone-filter-btn" aria-pressed="false">CSP</button>
+      <button id="show-csse" type="button" class="ocs__btn capstone-filter-btn" aria-pressed="false">CSSE</button>
       <select id="year-select" class="nc-select" aria-label="Filter projects by school year" style="max-width: 14rem;">
         <option value="2026-2027" selected>2026/2027</option>
         <option value="2025-2026">2025/2026</option>
@@ -54,12 +55,19 @@ document.addEventListener('DOMContentLoaded', function(){
     all: document.getElementById('show-all'),
     CSA: document.getElementById('show-csa'),
     CSP: document.getElementById('show-csp'),
-    CSH: document.getElementById('show-csh')
+    CSH: document.getElementById('show-csh'),
+    CSSE: document.getElementById('show-csse')
   };
   let currentType = 'all';
   let currentQuery = '';
   const yearSelect = document.getElementById('year-select');
   let currentYear = yearSelect ? yearSelect.value : '';
+  // Old Games links open the complete CSSE catalog, including undated projects.
+  if(new URLSearchParams(window.location.search).get('course') === 'CSSE'){
+    currentType = 'CSSE';
+    if(yearSelect) yearSelect.value = '';
+    currentYear = '';
+  }
 
   const linkMap = {
     "Oasis": {
@@ -254,6 +262,11 @@ document.addEventListener('DOMContentLoaded', function(){
   document.getElementById('show-csa')?.addEventListener('click', ()=> setTypeFilter('CSA'));
   document.getElementById('show-csp')?.addEventListener('click', ()=> setTypeFilter('CSP'));
   document.getElementById('show-csh')?.addEventListener('click', ()=> setTypeFilter('CSH'));
+  document.getElementById('show-csse')?.addEventListener('click', ()=>{
+    if(yearSelect) yearSelect.value = '';
+    currentYear = '';
+    setTypeFilter('CSSE');
+  });
   yearSelect?.addEventListener('change', event=>{
     currentYear = event.target.value;
     applyFilters();
@@ -423,7 +436,7 @@ document.addEventListener('DOMContentLoaded', function(){
        </a>
        <div>
            <h3><a href="{% post_url capstone/2026-08-31-submissions-capstone %}">OCS Assignments System</a></h3>
-           <p>Students are extending the OCS assignment lifecycle from creation through submission, analytics, and grading. The system supports inserting rubrics directly into assignments, providing immediate AI evaluation, and assigning student-generated lessons for peer review and grading. After initial automated evaluation, live review sessions follow, allowing students and graders to discuss challenges, successes, and the work. A grader assignment view supports this process by giving graders a place to review submissions, record observations, and provide an overall assessment. The work integrates OCS interfaces with the Java/Spring backend, AWS S3, and AWS RDS/SQL, moving assignment data, student activity, scores, and feedback into a shared system rather than separate tools and spreadsheets.</p>
+           <p>Students are making OCS grading faster and more reliable. The work includes AI grading with a key each user supplies, out of 1 point per assignment, student grades that sit alongside AI grades instead of overwriting them, and admin tools to correct bad submission records. Other pieces are lessons standardized through CRUD operations, data collection for a reworked self-assessment, and teacher and grader screens on the Pages frontend so teachers never need to use the Spring admin views.</p>
            <p>Groups: Assignment Creator Permissions, Submission Analytics, AI Grading</p>
        </div>
    </div>
@@ -1063,6 +1076,8 @@ document.addEventListener('DOMContentLoaded', function(){
            <p>Team: Akhil, Syown, Leon, Perry, Skandan, Sathwik, Akshajh, Tarun, Samarth</p>
        </div>
    </div>
+
+   {% include capstone-games.html %}
 </div>
 
 <!-- Edit Capstone Modal -->
