@@ -7,9 +7,28 @@ import Npc from '@assets/js/GameEnginev1.1/essentials/Npc.js';
 class FlowerNpc extends Npc {
   constructor(data, gameEnv) {
     super(data, gameEnv);
+    this.patrolPhase = 0;
+    this.lastPatrolTime = performance.now();
+    const patrolEndX = data.walkingArea.xMax - this.width;
+    this.patrolCenterX = (data.walkingArea.xMin + patrolEndX) / 2;
+    this.patrolAmplitude = Math.max(0, (patrolEndX - data.walkingArea.xMin) / 2);
+    this.position.x = this.patrolCenterX;
     this.handleFlowerClick = () => this.showReactionDialogue();
     this.canvas.style.cursor = 'pointer';
     this.canvas.addEventListener('click', this.handleFlowerClick);
+  }
+
+  patrol() {
+    const now = performance.now();
+    if (this.gameEnv.gameControl?.isPaused) {
+      this.lastPatrolTime = now;
+      return;
+    }
+
+    const elapsed = Math.min(now - this.lastPatrolTime, 50) / 1000;
+    this.lastPatrolTime = now;
+    this.patrolPhase += elapsed * this.data.patrolSpeed;
+    this.position.x = this.patrolCenterX + this.patrolAmplitude * Math.sin(this.patrolPhase);
   }
 
   destroy() {
@@ -96,11 +115,19 @@ class GameLevelSpring {
       id: "flower-happy",
       name: "Flower Happy",
       greeting: "Hello there!",
-      src: path + '/images/projects/racing-game/flowers-happy.jpg',
-      INIT_POSITION: { x: 0.65, y: 0.88 },
-      SCALE_FACTOR: 14,
+      src: path + '/images/projects/racing-game/flowers-happy-transparent.png',
+      INIT_POSITION: { x: 0.44, y: 0.01 },
+      SCALE_FACTOR: 8,
+      canvasFilter: 'saturate(1.5) contrast(1.2) drop-shadow(0 0 2px #fff) drop-shadow(0 0 5px rgba(0, 0, 0, 0.9))',
       orientation: { rows: 2, columns: 5 },
-      down: { row: 0, start: 0, columns: 5 }
+      down: { row: 0, start: 0, columns: 5 },
+      walkingArea: {
+        xMin: gameEnv.innerWidth * 0.36,
+        xMax: gameEnv.innerWidth * 0.65,
+        yMin: gameEnv.innerHeight * 0.01,
+        yMax: gameEnv.innerHeight * 0.14
+      },
+      patrolSpeed: 0.55
     };
     // Match the painted finish line on the bottom straight.
     const lap_data = {
