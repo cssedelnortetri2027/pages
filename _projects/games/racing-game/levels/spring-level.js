@@ -2,6 +2,21 @@ import GameEnvBackground from '@assets/js/GameEnginev1.1/essentials/GameEnvBackg
 import Player from './RacingPlayer.js';
 import DescentEntrance from './DescentEntrance.js';
 import SplineBarrier from '@assets/js/GameEnginev1.1/essentials/SplineBarrier.js'
+import Npc from '@assets/js/GameEnginev1.1/essentials/Npc.js';
+
+class FlowerNpc extends Npc {
+  constructor(data, gameEnv) {
+    super(data, gameEnv);
+    this.handleFlowerClick = () => this.showReactionDialogue();
+    this.canvas.style.cursor = 'pointer';
+    this.canvas.addEventListener('click', this.handleFlowerClick);
+  }
+
+  destroy() {
+    this.canvas.removeEventListener('click', this.handleFlowerClick);
+    super.destroy();
+  }
+}
 
 class GameLevelSpring {
   constructor(gameEnv) {
@@ -77,6 +92,15 @@ class GameLevelSpring {
         touchOptions: { interactLabel: "e", position: "right" },
         keypress: { up: 38, left: 37, down: 40, right: 39 } // Arrow keys
     }
+    const flower_data = {
+      id: "flower-happy",
+      name: "Flower Happy",
+      greeting: "Hello there!",
+      src: path + '/images/projects/racing-game/flowers-happy.jpg',
+      INIT_POSITION: { x: 0.65, y: 0.88 },
+      SCALE_FACTOR: 14,
+      orientation: { rows: 1, columns: 1 }
+    };
     // Match the painted finish line on the bottom straight.
     const lap_data = {
       totalLaps: 3,
@@ -89,12 +113,11 @@ class GameLevelSpring {
         {class: Player, data: player2_data},
         {class: SplineBarrier, data: barrierData1},
         {class: SplineBarrier, data: barrierData2},
+        {class: FlowerNpc, data: flower_data},
         {class: DescentEntrance, data: lap_data}
     ]
   }
 }
-
-
 
 export default GameLevelSpring;
 
