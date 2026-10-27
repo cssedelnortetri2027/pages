@@ -1,9 +1,5 @@
 import GameEnvBackground from '@assets/js/GameEnginev1.1/essentials/GameEnvBackground.js';
-<<<<<<< HEAD
-import Player from './RacingPlayer.js';
-=======
 import TutorialPlayer from './TutorialPlayer.js';
->>>>>>> 683e491dd (speed boost code)
 import SplineBarrier from '@assets/js/GameEnginev1.1/essentials/SplineBarrier.js';
 import TimeLapScreen from './TimeLapScreen.js';
 
@@ -95,13 +91,8 @@ class GameLevelTutorial {
 
     this.classes = [
       { class: GameEnvBackground, data: background_data },
-<<<<<<< HEAD
-      { class: Player, data: player_data },
-      { class: Player, data: other_data },
-=======
       { class: TutorialPlayer, data: player_data },
       { class: TutorialPlayer, data: other_data },
->>>>>>> 683e491dd (speed boost code)
       { class: SplineBarrier, data: barrierData1 },
       { class: SplineBarrier, data: barrierData2 },
       { class: TimeLapScreen, data: lap_data }

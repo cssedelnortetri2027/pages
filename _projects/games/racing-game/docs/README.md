@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 ---
 layout: post
 title: CS Pathway Game - Team Contributions
@@ -11,7 +10,7 @@ permalink: /kanbans2026
 # Kanban Boards
 
 Overall Kanban Board: <https://github.com/orgs/cssedelnortetri2027/projects/1>
-=======
+
 # Racing Game
 
 The tutorial course is a two-player race:
@@ -21,4 +20,3 @@ The tutorial course is a two-player race:
 
 Each car's boost then recharges for 10 seconds. Its matching red or blue meter sits at the
 corresponding edge of the screen and fills as the boost becomes available again.
->>>>>>> 683e491dd (speed boost code)
