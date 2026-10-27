@@ -99,7 +99,8 @@ class GameLevelSpring {
       src: path + '/images/projects/racing-game/flowers-happy.jpg',
       INIT_POSITION: { x: 0.65, y: 0.88 },
       SCALE_FACTOR: 14,
-      orientation: { rows: 1, columns: 1 }
+      orientation: { rows: 2, columns: 5 },
+      down: { row: 0, start: 0, columns: 5 }
     };
     // Match the painted finish line on the bottom straight.
     const lap_data = {
