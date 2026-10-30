@@ -2,15 +2,6 @@ import EnginePlayer from '@assets/js/GameEnginev1.1/essentials/Player.js';
 
 // Keep the class name Player: the racing HUD uses it to find both cars.
 export default class Player extends EnginePlayer {
-  applyTemporarySlowdown(durationMs = 5000, multiplier = 0.65, now = performance.now()) {
-    this.slowdownMultiplier = Math.min(this.getSlowdownMultiplier(now), multiplier);
-    this.slowdownUntil = Math.max(this.slowdownUntil || 0, now + durationMs);
-  }
-
-  getSlowdownMultiplier(now = performance.now()) {
-    return now < (this.slowdownUntil || 0) ? (this.slowdownMultiplier || 1) : 1;
-  }
-
   isOnMud() {
     if (!this.data?.mudSlowdown) return false;
 
@@ -45,7 +36,7 @@ export default class Player extends EnginePlayer {
 
     const velocityX = this.velocity.x;
     const velocityY = this.velocity.y;
-    const speedMultiplier = (this.isOnMud() ? 0.5 : 1) * this.getSlowdownMultiplier();
+    const speedMultiplier = this.isOnMud() ? 0.5 : 1;
     this.velocity.x *= speedMultiplier;
     this.velocity.y *= speedMultiplier;
     const slowedVelocityX = this.velocity.x;

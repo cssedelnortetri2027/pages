@@ -1,8 +1,35 @@
 import GameEnvBackground from '@assets/js/GameEnginev1.1/essentials/GameEnvBackground.js';
-import Player from './PlayerCar.js';
+import PlayerCar from './PlayerCar.js';
 import DescentEntrance from './DescentEntrance.js';
 import SplineBarrier from '@assets/js/GameEnginev1.1/essentials/SplineBarrier.js'
 import Npc from '@assets/js/GameEnginev1.1/essentials/Npc.js';
+
+class Player extends PlayerCar {
+  applyTemporarySlowdown() {
+    this.slowdownUntil = Math.max(this.slowdownUntil || 0, performance.now() + 5000);
+  }
+
+  getSlowdownMultiplier(now = performance.now()) {
+    return now < (this.slowdownUntil || 0) ? 0.65 : 1;
+  }
+
+  move() {
+    if (!this.velocity.x && !this.velocity.y) return super.move();
+
+    const velocityX = this.velocity.x;
+    const velocityY = this.velocity.y;
+    const multiplier = this.getSlowdownMultiplier();
+    this.velocity.x *= multiplier;
+    this.velocity.y *= multiplier;
+    const slowedVelocityX = this.velocity.x;
+    const slowedVelocityY = this.velocity.y;
+
+    super.move();
+
+    if (this.velocity.x === slowedVelocityX) this.velocity.x = velocityX;
+    if (this.velocity.y === slowedVelocityY) this.velocity.y = velocityY;
+  }
+}
 
 class FlowerNpc extends Npc {
   constructor(data, gameEnv) {
@@ -33,7 +60,7 @@ class FlowerNpc extends Npc {
     if (this.hasExploded) return;
 
     this.hasExploded = true;
-    players.forEach(player => player.applyTemporarySlowdown(5000, 0.65));
+    players.forEach(player => player.applyTemporarySlowdown());
     this.showWarningMessage();
     this.explosionTimeout = setTimeout(() => {
       this.explosionTimeout = null;
@@ -67,33 +94,12 @@ class FlowerNpc extends Npc {
   }
 
   explode() {
-    const colors = ['#ff4f9a', '#ffd447', '#fff'];
-    for (let index = 0; index < 9; index += 1) {
-      const particle = document.createElement('span');
-      Object.assign(particle.style, {
-        position: 'absolute',
-        left: `${this.position.x + this.width / 2}px`,
-        top: `${this.gameEnv.top + this.position.y + this.height / 2}px`,
-        width: '10px',
-        height: '10px',
-        borderRadius: '50%',
-        backgroundColor: colors[index % colors.length],
-        zIndex: '20',
-        pointerEvents: 'none',
-      });
-      this.gameEnv.container.appendChild(particle);
-      const angle = (Math.PI * 2 * index) / 9;
-      const animation = particle.animate(
-        [{ transform: 'translate(0, 0) scale(1)', opacity: 1 },
-          { transform: `translate(${Math.cos(angle) * 48}px, ${Math.sin(angle) * 48}px) scale(0.2)`, opacity: 0 }],
-        { duration: 500, easing: 'ease-out' }
-      );
-      animation.onfinish = () => particle.remove();
-    }
-
     const animation = this.canvas.animate(
-      [{ transform: 'scale(1)', opacity: 1, filter: 'brightness(1)' },
-        { transform: 'scale(1.7)', opacity: 0, filter: 'brightness(3)' }],
+      [
+        { transform: 'scale(1)', opacity: 1 },
+        { transform: 'scale(1.5)', opacity: 1, filter: 'brightness(4)' },
+        { transform: 'scale(2)', opacity: 0, filter: 'brightness(2)' },
+      ],
       { duration: 500, easing: 'ease-out', fill: 'forwards' }
     );
     animation.onfinish = () => this.destroy();
