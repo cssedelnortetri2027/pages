@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import GameLevelSpring from '../levels/spring-level.js';
 import { createKeyboardPlayer } from '@assets/js/GameEnginev1.1/test/keyboard-test-helper.mjs';
 
-test('spring level includes a stationary flower beside the track', () => {
+test('spring level includes happy and grumpy flowers beside the track', () => {
   const level = new GameLevelSpring({
     path: '',
     innerWidth: 740,
@@ -12,22 +12,43 @@ test('spring level includes a stationary flower beside the track', () => {
   assert.equal(level.classes.filter(({ class: ObjectType }) => ObjectType.name === 'Player').length, 2);
 
   const flowers = level.classes.filter(({ class: ObjectType }) => ObjectType.name === 'FlowerNpc');
-  const tracksideFlower = flowers.find(({ data }) => data.id === 'flower-trackside');
+  const roadsideHappyFlower = flowers.find(({ data }) => data.id === 'flower-happy-roadside');
+  const grumpyFlower = flowers.find(({ data }) => data.id === 'flower-grumpy');
 
-  assert.equal(flowers.length, 2);
-  assert.ok(tracksideFlower);
-  assert.deepEqual(tracksideFlower.data.INIT_POSITION, { x: 0.69, y: 0.36 });
-  assert.equal(tracksideFlower.data.walkingArea, null);
+  assert.equal(flowers.length, 3);
+  assert.ok(roadsideHappyFlower);
+  assert.equal(roadsideHappyFlower.data.greeting, 'Hi! I am a happy flower! Enjoying the ride?');
+  assert.deepEqual(roadsideHappyFlower.data.INIT_POSITION, { x: 0.18, y: 0.87 });
+  assert.equal(roadsideHappyFlower.data.walkingArea, null);
+  assert.ok(grumpyFlower);
+  assert.match(grumpyFlower.data.src, /\/Flower-grumpy\.png$/);
+  assert.deepEqual(grumpyFlower.data.INIT_POSITION, { x: 0.69, y: 0.87 });
+  assert.equal(grumpyFlower.data.greeting, 'Hey! Watch it!');
+  assert.equal(grumpyFlower.data.walkingArea, null);
 });
 
-test('the spring car slowdown expires after five seconds', () => {
+test('touching the grumpy flower slows the spring car for five seconds', () => {
   const level = new GameLevelSpring({ path: '', innerWidth: 740, innerHeight: 585 });
   const SpringPlayer = level.classes.find(({ class: ObjectType }) => ObjectType.name === 'Player').class;
   const player = createKeyboardPlayer(SpringPlayer);
-  player.applyTemporarySlowdown();
+  player.gameEnv.gameObjects = [];
+  player.collisionData = { touchPoints: { this: {} } };
+  player.handleCollisionReaction({ id: 'flower-grumpy' });
 
   assert.equal(player.getSlowdownMultiplier(player.slowdownUntil - 1), 0.65);
   assert.equal(player.getSlowdownMultiplier(player.slowdownUntil), 1);
+});
+
+test('touching a happy flower does not slow the spring car', () => {
+  const level = new GameLevelSpring({ path: '', innerWidth: 740, innerHeight: 585 });
+  const SpringPlayer = level.classes.find(({ class: ObjectType }) => ObjectType.name === 'Player').class;
+  const player = createKeyboardPlayer(SpringPlayer);
+  player.gameEnv.gameObjects = [];
+  player.collisionData = { touchPoints: { this: {} } };
+
+  player.handleCollisionReaction({ id: 'flower-happy-roadside' });
+
+  assert.equal(player.slowdownUntil, undefined);
 });
 
 test('the spring-only slowdown scales movement without changing car velocity', () => {
@@ -37,7 +58,9 @@ test('the spring-only slowdown scales movement without changing car velocity', (
   Object.assign(player.gameEnv, { innerWidth: 100, innerHeight: 100 });
   player.position = { x: 10, y: 10 };
   player.velocity = { x: 4, y: 0 };
-  player.applyTemporarySlowdown();
+  player.gameEnv.gameObjects = [];
+  player.collisionData = { touchPoints: { this: {} } };
+  player.handleCollisionReaction({ id: 'flower-grumpy' });
 
   player.move();
 

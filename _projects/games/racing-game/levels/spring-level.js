@@ -6,11 +6,16 @@ import Npc from '@assets/js/GameEnginev1.1/essentials/Npc.js';
 
 class Player extends PlayerCar {
   applyTemporarySlowdown() {
-    this.slowdownUntil = Math.max(this.slowdownUntil || 0, performance.now() + 5000);
+    this.slowdownUntil = performance.now() + 5000;
   }
 
   getSlowdownMultiplier(now = performance.now()) {
     return now < (this.slowdownUntil || 0) ? 0.65 : 1;
+  }
+
+  handleCollisionReaction(other) {
+    if (other?.id === 'flower-grumpy') this.applyTemporarySlowdown();
+    super.handleCollisionReaction(other);
   }
 
   move() {
@@ -48,19 +53,19 @@ class FlowerNpc extends Npc {
   }
 
   showReactionDialogue() {
-    const players = this.gameEnv.gameObjects.filter(
-      object => object?.state?.collisionEvents?.includes(this.spriteData.id)
-        && typeof object.applyTemporarySlowdown === 'function'
-    );
+    const hitBySpringCar = this.spriteData.id === 'flower-grumpy'
+      && this.gameEnv.gameObjects.some(
+        object => object?.state?.collisionEvents?.includes(this.spriteData.id)
+          && typeof object.applyTemporarySlowdown === 'function'
+      );
 
-    if (players.length === 0) {
+    if (!hitBySpringCar) {
       super.showReactionDialogue();
       return;
     }
     if (this.hasExploded) return;
 
     this.hasExploded = true;
-    players.forEach(player => player.applyTemporarySlowdown());
     this.showWarningMessage();
     this.explosionTimeout = setTimeout(() => {
       this.explosionTimeout = null;
@@ -205,7 +210,7 @@ class GameLevelSpring {
     const flower_data = {
       id: "flower-happy",
       name: "Flower Happy",
-      greeting: "Hello there!",
+      greeting: "Hi! I am a happy flower! Enjoying the ride?",
       src: path + '/images/projects/racing-game/flowers-happy-transparent.png',
       INIT_POSITION: { x: 0.44, y: 0.01 },
       SCALE_FACTOR: 8,
@@ -220,12 +225,20 @@ class GameLevelSpring {
       },
       patrolSpeed: 0.55
     };
-    const trackside_flower_data = {
+    const roadside_happy_flower_data = {
       ...flower_data,
-      id: "flower-trackside",
-      name: "Trackside Flower",
+      id: "flower-happy-roadside",
+      name: "Roadside Happy Flower",
+      INIT_POSITION: { x: 0.18, y: 0.87 },
+      walkingArea: null
+    };
+    const grumpy_flower_data = {
+      ...flower_data,
+      id: "flower-grumpy",
+      name: "Grumpy Flower",
+      src: path + '/images/projects/racing-game/Flower-grumpy.png',
       greeting: "Hey! Watch it!",
-      INIT_POSITION: { x: 0.69, y: 0.36 },
+      INIT_POSITION: { x: 0.69, y: 0.87 },
       walkingArea: null
     };
     // Match the painted finish line on the bottom straight.
@@ -241,7 +254,8 @@ class GameLevelSpring {
         {class: SplineBarrier, data: barrierData1},
         {class: SplineBarrier, data: barrierData2},
         {class: FlowerNpc, data: flower_data},
-        {class: FlowerNpc, data: trackside_flower_data},
+        {class: FlowerNpc, data: roadside_happy_flower_data},
+        {class: FlowerNpc, data: grumpy_flower_data},
         {class: DescentEntrance, data: lap_data}
     ]
   }
