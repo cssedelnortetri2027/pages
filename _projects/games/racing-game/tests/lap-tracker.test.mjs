@@ -91,15 +91,15 @@ test('boost runs for three seconds and cannot be triggered again while active', 
   assert.equal(boost.chargeFraction, 0);
 });
 
-test('recharge starts after the boost and completes after ten seconds', () => {
+test('recharge starts after the boost and completes after five seconds', () => {
   const boost = new SpeedBoost();
   boost.activate();
   boost.update(3000);
   assert.equal(boost.activate(), false);
 
-  boost.update(5000);
+  boost.update(2500);
   assert.equal(boost.chargeFraction, 0.5);
-  boost.update(4999);
+  boost.update(2499);
   assert.equal(boost.activate(), false);
   boost.update(1);
   assert.equal(boost.chargeFraction, 1);

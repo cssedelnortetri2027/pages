@@ -1,5 +1,5 @@
 const BOOST_DURATION_MS = 3000;
-const COOLDOWN_DURATION_MS = 10000;
+const COOLDOWN_DURATION_MS = 5000;
 
 export default class SpeedBoost {
   constructor() {
