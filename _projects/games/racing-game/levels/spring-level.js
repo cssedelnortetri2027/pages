@@ -9,13 +9,94 @@ class FlowerNpc extends Npc {
     super(data, gameEnv);
     this.patrolPhase = 0;
     this.lastPatrolTime = performance.now();
-    const patrolEndX = data.walkingArea.xMax - this.width;
-    this.patrolCenterX = (data.walkingArea.xMin + patrolEndX) / 2;
-    this.patrolAmplitude = Math.max(0, (patrolEndX - data.walkingArea.xMin) / 2);
-    this.position.x = this.patrolCenterX;
+    if (data.walkingArea) {
+      const patrolEndX = data.walkingArea.xMax - this.width;
+      this.patrolCenterX = (data.walkingArea.xMin + patrolEndX) / 2;
+      this.patrolAmplitude = Math.max(0, (patrolEndX - data.walkingArea.xMin) / 2);
+      this.position.x = this.patrolCenterX;
+    }
     this.handleFlowerClick = () => this.showReactionDialogue();
     this.canvas.style.cursor = 'pointer';
     this.canvas.addEventListener('click', this.handleFlowerClick);
+  }
+
+  showReactionDialogue() {
+    const players = this.gameEnv.gameObjects.filter(
+      object => object?.state?.collisionEvents?.includes(this.spriteData.id)
+        && typeof object.applyTemporarySlowdown === 'function'
+    );
+
+    if (players.length === 0) {
+      super.showReactionDialogue();
+      return;
+    }
+    if (this.hasExploded) return;
+
+    this.hasExploded = true;
+    players.forEach(player => player.applyTemporarySlowdown(5000, 0.65));
+    this.showWarningMessage();
+    this.explosionTimeout = setTimeout(() => {
+      this.explosionTimeout = null;
+      this.explode();
+    }, 700);
+  }
+
+  showWarningMessage() {
+    const message = document.createElement('div');
+    message.textContent = 'Hey! Watch it!';
+    Object.assign(message.style, {
+      position: 'absolute',
+      top: `${this.gameEnv.top + 24}px`,
+      left: '50%',
+      transform: 'translateX(-50%)',
+      zIndex: '1000',
+      padding: '10px 18px',
+      borderRadius: '8px',
+      background: 'rgba(0, 0, 0, 0.8)',
+      color: '#fff',
+      font: 'bold 20px sans-serif',
+      pointerEvents: 'none',
+    });
+    this.gameEnv.container.appendChild(message);
+
+    const animation = message.animate(
+      [{ opacity: 1 }, { opacity: 0 }],
+      { duration: 1800, delay: 700, fill: 'forwards' }
+    );
+    animation.onfinish = () => message.remove();
+  }
+
+  explode() {
+    const colors = ['#ff4f9a', '#ffd447', '#fff'];
+    for (let index = 0; index < 9; index += 1) {
+      const particle = document.createElement('span');
+      Object.assign(particle.style, {
+        position: 'absolute',
+        left: `${this.position.x + this.width / 2}px`,
+        top: `${this.gameEnv.top + this.position.y + this.height / 2}px`,
+        width: '10px',
+        height: '10px',
+        borderRadius: '50%',
+        backgroundColor: colors[index % colors.length],
+        zIndex: '20',
+        pointerEvents: 'none',
+      });
+      this.gameEnv.container.appendChild(particle);
+      const angle = (Math.PI * 2 * index) / 9;
+      const animation = particle.animate(
+        [{ transform: 'translate(0, 0) scale(1)', opacity: 1 },
+          { transform: `translate(${Math.cos(angle) * 48}px, ${Math.sin(angle) * 48}px) scale(0.2)`, opacity: 0 }],
+        { duration: 500, easing: 'ease-out' }
+      );
+      animation.onfinish = () => particle.remove();
+    }
+
+    const animation = this.canvas.animate(
+      [{ transform: 'scale(1)', opacity: 1, filter: 'brightness(1)' },
+        { transform: 'scale(1.7)', opacity: 0, filter: 'brightness(3)' }],
+      { duration: 500, easing: 'ease-out', fill: 'forwards' }
+    );
+    animation.onfinish = () => this.destroy();
   }
 
   patrol() {
@@ -33,6 +114,10 @@ class FlowerNpc extends Npc {
 
   destroy() {
     this.canvas.removeEventListener('click', this.handleFlowerClick);
+    if (this.explosionTimeout) {
+      clearTimeout(this.explosionTimeout);
+      this.explosionTimeout = null;
+    }
     super.destroy();
   }
 }
@@ -129,6 +214,14 @@ class GameLevelSpring {
       },
       patrolSpeed: 0.55
     };
+    const trackside_flower_data = {
+      ...flower_data,
+      id: "flower-trackside",
+      name: "Trackside Flower",
+      greeting: "Hey! Watch it!",
+      INIT_POSITION: { x: 0.69, y: 0.36 },
+      walkingArea: null
+    };
     // Match the painted finish line on the bottom straight.
     const lap_data = {
       totalLaps: 3,
@@ -142,10 +235,10 @@ class GameLevelSpring {
         {class: SplineBarrier, data: barrierData1},
         {class: SplineBarrier, data: barrierData2},
         {class: FlowerNpc, data: flower_data},
+        {class: FlowerNpc, data: trackside_flower_data},
         {class: DescentEntrance, data: lap_data}
     ]
   }
 }
 
 export default GameLevelSpring;
-

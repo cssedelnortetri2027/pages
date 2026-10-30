@@ -84,6 +84,28 @@ test('a key released while paused does not leave the car moving', () => {
   assert.deepEqual(player.velocity, { x: 0, y: 0 });
 });
 
+test('a temporary slowdown reduces movement by 35% for five seconds', () => {
+  const player = fixture();
+  player.applyTemporarySlowdown(5000, 0.65, 1000);
+
+  assert.equal(player.getSlowdownMultiplier(1000), 0.65);
+  assert.equal(player.getSlowdownMultiplier(5999), 0.65);
+  assert.equal(player.getSlowdownMultiplier(6000), 1);
+});
+
+test('a slowed car moves at 65% velocity without changing its input velocity', () => {
+  const player = fixture();
+  Object.assign(player.gameEnv, { innerWidth: 100, innerHeight: 100, top: 0 });
+  player.position = { x: 10, y: 10 };
+  player.velocity = { x: 4, y: 0 };
+  player.applyTemporarySlowdown();
+
+  player.move();
+
+  assert.equal(player.position.x, 12.6);
+  assert.equal(player.velocity.x, 4);
+});
+
 test('holding accelerate gradually increases speed up to the maximum', () => {
   const player = accelerationFixture();
   pressKey(player, wasd.up);
