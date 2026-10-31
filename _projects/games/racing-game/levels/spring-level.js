@@ -229,7 +229,7 @@ class GameLevelSpring {
       ...flower_data,
       id: "flower-happy-roadside",
       name: "Roadside Happy Flower",
-      INIT_POSITION: { x: 0.18, y: 0.87 },
+      INIT_POSITION: { x: 0.18, y: 0.82 },
       walkingArea: null
     };
     const grumpy_flower_data = {
@@ -238,7 +238,7 @@ class GameLevelSpring {
       name: "Grumpy Flower",
       src: path + '/images/projects/racing-game/Flower-grumpy.png',
       greeting: "Hey! Watch it!",
-      INIT_POSITION: { x: 0.69, y: 0.87 },
+      INIT_POSITION: { x: 0.69, y: 0.82 },
       walkingArea: null
     };
     // Match the painted finish line on the bottom straight.

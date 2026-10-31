@@ -18,11 +18,11 @@ test('spring level includes happy and grumpy flowers beside the track', () => {
   assert.equal(flowers.length, 3);
   assert.ok(roadsideHappyFlower);
   assert.equal(roadsideHappyFlower.data.greeting, 'Hi! I am a happy flower! Enjoying the ride?');
-  assert.deepEqual(roadsideHappyFlower.data.INIT_POSITION, { x: 0.18, y: 0.87 });
+  assert.deepEqual(roadsideHappyFlower.data.INIT_POSITION, { x: 0.18, y: 0.82 });
   assert.equal(roadsideHappyFlower.data.walkingArea, null);
   assert.ok(grumpyFlower);
   assert.match(grumpyFlower.data.src, /\/Flower-grumpy\.png$/);
-  assert.deepEqual(grumpyFlower.data.INIT_POSITION, { x: 0.69, y: 0.87 });
+  assert.deepEqual(grumpyFlower.data.INIT_POSITION, { x: 0.69, y: 0.82 });
   assert.equal(grumpyFlower.data.greeting, 'Hey! Watch it!');
   assert.equal(grumpyFlower.data.walkingArea, null);
 });
