@@ -18,13 +18,77 @@ test('spring level includes happy and grumpy flowers beside the track', () => {
   assert.equal(flowers.length, 3);
   assert.ok(roadsideHappyFlower);
   assert.equal(roadsideHappyFlower.data.greeting, 'Hi! I am a happy flower! Enjoying the ride?');
-  assert.deepEqual(roadsideHappyFlower.data.INIT_POSITION, { x: 0.18, y: 0.82 });
-  assert.equal(roadsideHappyFlower.data.walkingArea, null);
+  assert.deepEqual(roadsideHappyFlower.data.INIT_POSITION, { x: 0.18, y: 0.70 });
+  assert.deepEqual(roadsideHappyFlower.data.walkingArea, {
+    xMin: 740 * 0.05,
+    xMax: 740 * 0.32,
+    yMin: 585 * 0.68,
+    yMax: 585 * 0.82,
+  });
   assert.ok(grumpyFlower);
   assert.match(grumpyFlower.data.src, /\/Flower-grumpy\.png$/);
-  assert.deepEqual(grumpyFlower.data.INIT_POSITION, { x: 0.69, y: 0.82 });
+  assert.deepEqual(grumpyFlower.data.INIT_POSITION, { x: 0.5, y: 0.70 });
   assert.equal(grumpyFlower.data.greeting, 'Hey! Watch it!');
-  assert.equal(grumpyFlower.data.walkingArea, null);
+  assert.deepEqual(grumpyFlower.data.walkingArea, {
+    xMin: 740 * 0.12,
+    xMax: 740 * 0.88,
+    yMin: 585 * 0.68,
+    yMax: 585 * 0.82,
+  });
+});
+
+test('both bottom flowers patrol horizontally', () => {
+  const level = new GameLevelSpring({ path: '', innerWidth: 740, innerHeight: 585 });
+  const bottomFlowers = level.classes.filter(({ data }) =>
+    ['flower-happy-roadside', 'flower-grumpy'].includes(data.id)
+  );
+
+  for (const { class: Flower, data } of bottomFlowers) {
+    const width = 73;
+    const patrolEndX = data.walkingArea.xMax - width;
+    const centerX = (data.walkingArea.xMin + patrolEndX) / 2;
+    const flower = Object.create(Flower.prototype);
+    Object.assign(flower, {
+      position: { x: centerX, y: 0 },
+      width,
+      patrolCenterX: centerX,
+      patrolAmplitude: (patrolEndX - data.walkingArea.xMin) / 2,
+      patrolPhase: 0,
+      lastPatrolTime: performance.now() - 50,
+      data,
+      gameEnv: { gameControl: { isPaused: false } },
+    });
+
+    flower.patrol();
+
+    assert.notEqual(flower.position.x, centerX, `${data.id} should move along the track`);
+  }
+});
+
+test('a grumpy flower touching a car schedules its explosion without a click', (t) => {
+  const level = new GameLevelSpring({ path: '', innerWidth: 740, innerHeight: 585 });
+  const GrumpyFlower = level.classes.find(({ data }) => data.id === 'flower-grumpy').class;
+  const flower = Object.create(GrumpyFlower.prototype);
+  const player = {
+    state: { collisionEvents: ['flower-grumpy'] },
+    applyTemporarySlowdown() {},
+  };
+  let warningShown = false;
+  Object.assign(flower, {
+    spriteData: { id: 'flower-grumpy' },
+    gameEnv: { gameObjects: [player], gameControl: { isPaused: false } },
+    walkingArea: null,
+    draw() {},
+    showWarningMessage() { warningShown = true; },
+    explode() {},
+  });
+
+  flower.update();
+  t.after(() => clearTimeout(flower.explosionTimeout));
+
+  assert.equal(warningShown, true);
+  assert.equal(flower.hasExploded, true);
+  assert.ok(flower.explosionTimeout);
 });
 
 test('touching the grumpy flower slows the spring car for five seconds', () => {

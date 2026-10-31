@@ -53,16 +53,28 @@ class FlowerNpc extends Npc {
   }
 
   showReactionDialogue() {
-    const hitBySpringCar = this.spriteData.id === 'flower-grumpy'
+    if (!this.isTouchingSpringCar()) {
+      super.showReactionDialogue();
+      return;
+    }
+
+    this.explodeOnCollision();
+  }
+
+  update() {
+    super.update();
+    if (this.isTouchingSpringCar()) this.explodeOnCollision();
+  }
+
+  isTouchingSpringCar() {
+    return this.spriteData.id === 'flower-grumpy'
       && this.gameEnv.gameObjects.some(
         object => object?.state?.collisionEvents?.includes(this.spriteData.id)
           && typeof object.applyTemporarySlowdown === 'function'
       );
+  }
 
-    if (!hitBySpringCar) {
-      super.showReactionDialogue();
-      return;
-    }
+  explodeOnCollision() {
     if (this.hasExploded) return;
 
     this.hasExploded = true;
@@ -229,8 +241,13 @@ class GameLevelSpring {
       ...flower_data,
       id: "flower-happy-roadside",
       name: "Roadside Happy Flower",
-      INIT_POSITION: { x: 0.18, y: 0.82 },
-      walkingArea: null
+      INIT_POSITION: { x: 0.18, y: 0.70 },
+      walkingArea: {
+        xMin: gameEnv.innerWidth * 0.05,
+        xMax: gameEnv.innerWidth * 0.32,
+        yMin: gameEnv.innerHeight * 0.68,
+        yMax: gameEnv.innerHeight * 0.82
+      }
     };
     const grumpy_flower_data = {
       ...flower_data,
@@ -238,8 +255,13 @@ class GameLevelSpring {
       name: "Grumpy Flower",
       src: path + '/images/projects/racing-game/Flower-grumpy.png',
       greeting: "Hey! Watch it!",
-      INIT_POSITION: { x: 0.69, y: 0.82 },
-      walkingArea: null
+      INIT_POSITION: { x: 0.5, y: 0.70 },
+      walkingArea: {
+        xMin: gameEnv.innerWidth * 0.12,
+        xMax: gameEnv.innerWidth * 0.88,
+        yMin: gameEnv.innerHeight * 0.68,
+        yMax: gameEnv.innerHeight * 0.82
+      }
     };
     // Match the painted finish line on the bottom straight.
     const lap_data = {
