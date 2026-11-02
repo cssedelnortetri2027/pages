@@ -93,7 +93,7 @@ class GameLevelWinter {
     }
     const other_data = {
         name: "Blue Car",
-        greeting: "I'm the blue car!",
+        greeting: "I'm the bluee car!",
         src: path + '/images/projects/racing-game/Directions_blue_car.png',
         SCALE_FACTOR: 20,
         STEP_FACTOR: 1100,
