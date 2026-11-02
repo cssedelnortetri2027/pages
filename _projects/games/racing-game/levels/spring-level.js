@@ -3,6 +3,7 @@ import AccelDecelRacingPlayer from './AccelDecelRacingPlayer.js';
 import DescentEntrance from './DescentEntrance.js';
 import SplineBarrier from '@assets/js/GameEnginev1.1/essentials/SplineBarrier.js'
 import Npc from '@assets/js/GameEnginev1.1/essentials/Npc.js';
+import cleanupRacingLevel from './cleanup-racing-level.js';
 
 const GREEN_ORB_RESPAWN_MS = 30000;
 const SPEED_BOOST_DURATION_MS = 10000;
@@ -252,6 +253,7 @@ class GreenOrb extends Npc {
 
 class GameLevelSpring {
   constructor(gameEnv) {
+    this.gameEnv = gameEnv;
     const path = gameEnv.path;
     const background_data = {
       name: "Spring Course",
@@ -410,6 +412,9 @@ class GameLevelSpring {
         {class: GreenOrb, data: green_orb_data},
         {class: DescentEntrance, data: lap_data}
     ]
+  }
+  destroy() {
+    cleanupRacingLevel(this.gameEnv);
   }
 }
 
