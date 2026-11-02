@@ -51,7 +51,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
                     }
 
-                    warnIfSpringSignedOut(loginArea);
+                    // A limited account (a guest) never has a Spring account, so there is nothing to warn about
+                    if (!data.limited) warnIfSpringSignedOut(loginArea);
 
                     // Update navigation AFTER dropdown is set up
                     waitForElement('.trigger', 20, 100).then(() => {
@@ -126,12 +127,11 @@ function warnIfSpringSignedOut(loginArea) {
 // on every page right away, not only after they open the dashboard.
 async function syncThemeOwner(uid) {
     const previousOwner = localStorage.getItem('sitePreferencesOwner');
-    if (!springEnabled || !uid || previousOwner === uid || window.loggingOut) return;
+    if (!springEnabled || !uid || previousOwner === uid) return;
     try {
         const response = await fetch(`${javaURI}/api/user/preferences`, fetchOptions);
         if (!response.ok) return;
         const data = await response.json();
-        if (window.loggingOut) return;
         const prefs = data?.id ? FormatConverter.toFrontend(data) : null;
         localStorage.setItem('sitePreferencesOwner', uid);
         if (prefs) {
