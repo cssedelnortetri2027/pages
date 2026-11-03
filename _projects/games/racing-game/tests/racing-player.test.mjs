@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import RacingPlayer from '../levels/RacingPlayer.js';
 import AccelDecelRacingPlayer from '../levels/AccelDecelRacingPlayer.js';
+import GameLevelSpring from '../levels/spring-level.js';
 import GameLevelWinter from '../levels/winter-level.js';
 import { getRandomTrackPoint } from '../levels/WinterIcicle.js';
 import {
@@ -171,6 +172,24 @@ test('winter cars use acceleration, reverse-speed, and individual boost keys', (
     assert.equal(car.data.direction.default, 'right');
     assert.equal(car.data.INIT_POSITION.x, 0.44, 'both cars should stage just before the start line');
     assert.equal(car.data.INIT_POSITION.y, [0.775, 0.805][index], 'cars should stage in separate lanes');
+    assert.equal(car.data.currentSpeed, 0);
+    assert.equal(car.data.maxSpeed, 12);
+    assert.equal(car.data.acceleration, 0.4);
+    assert.equal(car.data.deceleration, 0.4);
+    assert.equal(car.data.reverseSpeed, -4);
+    assert.equal(car.data.STEP_FACTOR, 1100);
+    assert.equal(car.data.boostKey, [70, 75][index]);
+  }
+});
+
+test('spring cars use winter movement and boost settings without changing their size', () => {
+  const springLevel = new GameLevelSpring({ path: '' });
+  const springCars = springLevel.classes.slice(1, 3);
+
+  assert.equal(springCars.length, 2);
+  for (const [index, car] of springCars.entries()) {
+    assert.equal(car.class.prototype instanceof AccelDecelRacingPlayer, true);
+    assert.equal(car.data.SCALE_FACTOR, 10);
     assert.equal(car.data.currentSpeed, 0);
     assert.equal(car.data.maxSpeed, 12);
     assert.equal(car.data.acceleration, 0.4);
